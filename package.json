@@ -36,9 +36,15 @@
                     "description": "The name of the output file that will store the concatenated contents of all collected text-based files."
                 },
                 "dumpSource.extensions": {
-                    "type": "string",
-                    "default": ".ts,.js,.c,.cpp,.py,.cs,.h,.hpp,.go,.rs,.dart,.kt,.swift,.objc",
-                    "description": "A comma-separated list of file extensions to include during the dumping process."
+                    "type": "array",
+                    "items": "string",
+                    "default": [
+                        "txt",
+                        "ts",
+                        "js",
+                        "c"
+                    ],
+                    "description": "A list of file extensions to include during the dumping process (without leading dots). For example: [\"txt\", \"ts\", \"js\", \"c\"]."
                 }
             }
         }
