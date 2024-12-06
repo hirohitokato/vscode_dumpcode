@@ -1,127 +1,80 @@
 import * as vscode from "vscode";
-import * as path from "path";
-import * as fs from "fs/promises";
-import { Dirent } from "fs";
-import ignore, { Ignore } from "ignore";
-import { isBinaryFile } from "isbinaryfile";
+import { dumpFilesContent, getFiles } from "./fileProcessor";
+import { UserDefaults } from "./userDefaults";
+import path from "path";
 
+/**
+ * このファイルは、Visual Studio Codeのエクステンションエントリーポイントとして機能する。
+ * - activate(): エクステンションが有効化された際に呼び出される初期化処理を行う。
+ * - deactivate(): エクステンションが無効化された際の後処理を行う（今回は特に処理なし）。
+ *
+ * 本エクステンションでは、エクスプローラー上でフォルダーを右クリックしたときに「Dump Sources」という
+ * コンテキストメニューを追加する。選択されたフォルダー以下のファイル一覧（テキストファイルのみ）を取得し、
+ * 一覧としてユーザーに表示する。`.gitignore`で無視されるファイルや、`.git`ディレクトリ、バイナリファイルなどは除外する。
+ */
+
+/**
+ * エクステンションが有効化された際に呼び出される関数。
+ * コマンド"dump-sourcecode.dump_files"を登録し、フォルダー右クリック時のコンテキストメニューから
+ * ファイル一覧取得処理を実行できるようにする。
+ */
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand(
+    const disposable = vscode.commands.registerCommand(
         "dump-sourcecode.dump_files",
         async (uri: vscode.Uri) => {
+            // VS Codeが開いているフォルダー内で選択されたフォルダーの絶対パス
             const folderPath = uri.fsPath;
+            // コマンド実行時の処理部分
+            const userDefaults = new UserDefaults();
             vscode.window.showInformationMessage(
-                `選択されたフォルダー: ${folderPath}`
+                `Selected folder: ${folderPath}`
             );
 
-            try {
-                const files = await getFiles(folderPath);
-                vscode.window.showInformationMessage(
-                    `テキストファイル一覧:\n${files.join("\n")}`
-                );
-            } catch (error: any) {
-                vscode.window.showErrorMessage(
-                    `エラーが発生しました: ${error.message}`
-                );
-            }
+            // 処理全体をプログレスインジケーター内で実行
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Window,
+                    title: "Processing files...",
+                },
+                async () => {
+                    // ファイル一覧取得
+                    const files = await getFiles(
+                        folderPath,
+                        userDefaults.extensions
+                    );
+                    // ファイル内容ダンプ
+                    await dumpFilesContent(
+                        folderPath,
+                        userDefaults.outputFileName,
+                        files
+                    );
+
+                    // ダンプ結果ファイルをエディタで開く
+                    const dumpPath = path.join(
+                        folderPath,
+                        userDefaults.outputFileName
+                    );
+                    const doc = await vscode.workspace.openTextDocument(
+                        dumpPath
+                    );
+                    await vscode.window.showTextDocument(doc);
+
+                    // 完了メッセージ表示（設定で指定されたファイル名を反映）
+                    vscode.window.showInformationMessage(
+                        `Output completed: ${userDefaults.outputFileName}`
+                    );
+                }
+            );
         }
     );
 
     context.subscriptions.push(disposable);
 }
 
-export function deactivate() {}
-
-async function getFiles(dirPath: string): Promise<string[]> {
-    const files: string[] = [];
-    await traverseDirectory(dirPath, files, dirPath, []);
-    return files;
-}
-
-async function traverseDirectory(
-    currentPath: string,
-    files: string[],
-    rootDir: string,
-    ignoreStack: Ignore[]
-) {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-    const ig = await createIgnore(currentPath);
-    const newIgnoreStack = ignoreStack.slice();
-    if (ig) {
-        newIgnoreStack.push(ig);
-    }
-
-    for (const entry of entries) {
-        const fullPath = path.join(currentPath, entry.name);
-        const relativePath = path
-            .relative(rootDir, fullPath)
-            .replace(/\\/g, "/");
-
-        // shouldIgnoreを先に呼び出して、ディレクトリ・バイナリ判定や.gitignore判定をまとめて行う
-        if (await shouldIgnore(fullPath, relativePath, entry, newIgnoreStack)) {
-            continue;
-        }
-
-        // 無視しない場合のみ、ディレクトリなら再帰的探索、ファイルならpush
-        if (entry.isDirectory()) {
-            await traverseDirectory(fullPath, files, rootDir, newIgnoreStack);
-        } else if (entry.isFile()) {
-            files.push(fullPath);
-        }
-    }
-}
-
 /**
- * この関数で以下を総合的に判定する:
- * - .gitフォルダなど特定ディレクトリの無条件無視
- * - バイナリファイルの無視
- * - .gitignoreルールに基づく無視
+ * エクステンションが無効化された際に呼び出される関数。
+ * 今回は特に後処理は必要ないため、空実装としている。
  */
-async function shouldIgnore(
-    fullPath: string,
-    relativePath: string,
-    entry: Dirent,
-    ignoreStack: Ignore[]
-): Promise<boolean> {
-    // .gitディレクトリは無条件で無視
-    if (entry.isDirectory() && entry.name === ".git") {
-        return true;
-    }
-
-    // ファイルの場合はバイナリチェック
-    if (entry.isFile()) {
-        const binary = await isBinaryFile(fullPath);
-        if (binary) {
-            return true; // バイナリは無視
-        }
-    }
-
-    // .gitignoreルールに従った無視判定
-    for (const ig of ignoreStack) {
-        if (ig.ignores(relativePath)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-async function createIgnore(dirPath: string): Promise<Ignore | null> {
-    const gitignorePath = path.join(dirPath, ".gitignore");
-    if (await exists(gitignorePath)) {
-        const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
-        const ig = ignore();
-        ig.add(gitignoreContent);
-        return ig;
-    }
-    return null;
-}
-
-async function exists(path: string): Promise<boolean> {
-    try {
-        await fs.access(path);
-        return true;
-    } catch {
-        return false;
-    }
+export function deactivate() {
+    // No operation
 }

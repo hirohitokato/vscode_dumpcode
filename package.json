@@ -1,7 +1,7 @@
 {
     "name": "dump-sourcecode",
     "displayName": "Dump Sources Extension",
-    "description": "Dump all source code in the specified folder.",
+    "description": "This Visual Studio Code extension adds a \"Dump Sources\" command to the explorer context menu. When you right-click on a folder, it gathers all text-based files that match user-specified file extensions, excluding files ignored by .gitignore and binary files, and concatenates their contents into a single output file. Users can configure the output file name and the list of target file extensions in the VS Code settings.",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.54.0"
@@ -26,6 +26,21 @@
                     "group": "navigation"
                 }
             ]
+        },
+        "configuration": {
+            "title": "Dump Sourcecode Settings",
+            "properties": {
+                "dumpSource.outputFileName": {
+                    "type": "string",
+                    "default": "dump.txt",
+                    "description": "The name of the output file that will store the concatenated contents of all collected text-based files."
+                },
+                "dumpSource.extensions": {
+                    "type": "string",
+                    "default": ".ts,.js,.c,.cpp,.py,.cs,.h,.hpp,.go,.rs,.dart,.kt,.swift,.objc",
+                    "description": "A comma-separated list of file extensions to include during the dumping process."
+                }
+            }
         }
     },
     "scripts": {
