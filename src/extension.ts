@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs/promises";
+import { Dirent } from "fs";
 import ignore, { Ignore } from "ignore";
+import { isBinaryFile } from "isbinaryfile";
 
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand(
@@ -12,11 +14,10 @@ export function activate(context: vscode.ExtensionContext) {
                 `選択されたフォルダー: ${folderPath}`
             );
 
-            // ファイル一覧を取得
             try {
                 const files = await getFiles(folderPath);
                 vscode.window.showInformationMessage(
-                    `ファイル一覧:\n${files.join("\n")}`
+                    `テキストファイル一覧:\n${files.join("\n")}`
                 );
             } catch (error: any) {
                 vscode.window.showErrorMessage(
@@ -31,24 +32,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-/**
- * 指定したディレクトリ内のファイルを列挙し、.gitignoreで無視されているファイルを除外する
- * @param dirPath 列挙するディレクトリのパス
- * @returns ファイルパスの配列
- */
 async function getFiles(dirPath: string): Promise<string[]> {
     const files: string[] = [];
     await traverseDirectory(dirPath, files, dirPath, []);
     return files;
 }
 
-/**
- * ディレクトリを再帰的に探索し、ファイルを収集する
- * @param currentPath 現在のディレクトリパス
- * @param files ファイルパスを格納する配列
- * @param rootDir ルートディレクトリのパス
- * @param ignoreStack 無視パターンのスタック
- */
 async function traverseDirectory(
     currentPath: string,
     files: string[],
@@ -56,11 +45,7 @@ async function traverseDirectory(
     ignoreStack: Ignore[]
 ) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
-
-    // 現在のディレクトリのIgnoreオブジェクトを作成
     const ig = await createIgnore(currentPath);
-
-    // 新しいスタックを作成（親のパターンを含む）
     const newIgnoreStack = ignoreStack.slice();
     if (ig) {
         newIgnoreStack.push(ig);
@@ -70,18 +55,15 @@ async function traverseDirectory(
         const fullPath = path.join(currentPath, entry.name);
         const relativePath = path
             .relative(rootDir, fullPath)
-            .replace(/\\/g, "/"); // Windows対応
+            .replace(/\\/g, "/");
 
-        // .gitignoreで無視されているかチェック
-        if (shouldIgnore(relativePath, newIgnoreStack)) {
+        // shouldIgnoreを先に呼び出して、ディレクトリ・バイナリ判定や.gitignore判定をまとめて行う
+        if (await shouldIgnore(fullPath, relativePath, entry, newIgnoreStack)) {
             continue;
         }
 
+        // 無視しない場合のみ、ディレクトリなら再帰的探索、ファイルならpush
         if (entry.isDirectory()) {
-            // .gitディレクトリ自体は無視
-            if (entry.name === ".git") {
-                continue;
-            }
             await traverseDirectory(fullPath, files, rootDir, newIgnoreStack);
         } else if (entry.isFile()) {
             files.push(fullPath);
@@ -90,25 +72,40 @@ async function traverseDirectory(
 }
 
 /**
- * 無視パターンを適用して、エントリを無視するかどうかを判定
- * @param relativePath ルートからの相対パス
- * @param ignoreStack 無視パターンのスタック
- * @returns 無視する場合はtrue、しない場合はfalse
+ * この関数で以下を総合的に判定する:
+ * - .gitフォルダなど特定ディレクトリの無条件無視
+ * - バイナリファイルの無視
+ * - .gitignoreルールに基づく無視
  */
-function shouldIgnore(relativePath: string, ignoreStack: Ignore[]): boolean {
+async function shouldIgnore(
+    fullPath: string,
+    relativePath: string,
+    entry: Dirent,
+    ignoreStack: Ignore[]
+): Promise<boolean> {
+    // .gitディレクトリは無条件で無視
+    if (entry.isDirectory() && entry.name === ".git") {
+        return true;
+    }
+
+    // ファイルの場合はバイナリチェック
+    if (entry.isFile()) {
+        const binary = await isBinaryFile(fullPath);
+        if (binary) {
+            return true; // バイナリは無視
+        }
+    }
+
+    // .gitignoreルールに従った無視判定
     for (const ig of ignoreStack) {
         if (ig.ignores(relativePath)) {
             return true;
         }
     }
+
     return false;
 }
 
-/**
- * 指定したディレクトリのIgnoreオブジェクトを作成する
- * @param dirPath ディレクトリのパス
- * @returns Ignoreオブジェクトまたはnull
- */
 async function createIgnore(dirPath: string): Promise<Ignore | null> {
     const gitignorePath = path.join(dirPath, ".gitignore");
     if (await exists(gitignorePath)) {
@@ -120,11 +117,6 @@ async function createIgnore(dirPath: string): Promise<Ignore | null> {
     return null;
 }
 
-/**
- * ファイルやディレクトリが存在するかチェックする
- * @param path チェックするパス
- * @returns 存在する場合はtrue、存在しない場合はfalse
- */
 async function exists(path: string): Promise<boolean> {
     try {
         await fs.access(path);
