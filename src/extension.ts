@@ -29,19 +29,27 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage(
                 `Selected folder: ${folderPath}`
             );
+            let files: string[] = [];
 
-            // 処理全体をプログレスインジケーター内で実行
+            // 処理全体を２つのプログレスインジケーター内で実行
+            // 1.ファイル収集
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Window,
-                    title: "Processing files...",
+                    title: "(1/2) Retrieving files...",
                 },
                 async () => {
                     // ファイル一覧取得
-                    const files = await getFiles(
-                        folderPath,
-                        userDefaults.extensions
-                    );
+                    files = await getFiles(folderPath, userDefaults.extensions);
+                }
+            );
+            // 2.ダンプ処理
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Window,
+                    title: "(2/2) Generating dumped files...",
+                },
+                async () => {
                     // ファイル内容ダンプ
                     await dumpFilesContent(
                         folderPath,

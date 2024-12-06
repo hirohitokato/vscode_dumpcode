@@ -65,7 +65,7 @@ export async function dumpFilesContent(
     for (const file of files) {
         // 区切り行に記載するための相対パスを求める
         const relative = path.relative(rootDir, file);
-        const separator = `########## ${relative} ##########\n`;
+        const separator = `\n\n########## ${relative} ##########\n\n`;
 
         // 区切り行を書き込み
         await fs.appendFile(dumpPath, separator, "utf8");
