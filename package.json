@@ -3,6 +3,7 @@
     "displayName": "Dump Sources Extension",
     "description": "This Visual Studio Code extension adds a \"Dump Sources\" command to the explorer context menu. When you right-click on a folder, it gathers all text-based files that match user-specified file extensions, excluding files ignored by .gitignore and binary files, and concatenates their contents into a single output file. Users can configure the output file name and the list of target file extensions in the VS Code settings.",
     "version": "0.0.1",
+    "publisher": "1SkkA6J6UOEdoJ921x9iujnlYsoDTfK9oJfNskyTPvyb2e8pnJgoJQQJ99ALACAAAAAAAAAAAAASAZDO2vXm",
     "engines": {
         "vscode": "^1.54.0"
     },
