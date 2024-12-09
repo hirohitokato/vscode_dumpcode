@@ -3,7 +3,7 @@
     "displayName": "Dump Sources Extension",
     "description": "The extension gathers all source files in the specified folder and concatenates their contents into a single text file.",
     "icon": "assets/icon.png",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "publisher": "hkato193",
     "repository": {
         "url": "https://github.com/hirohitokato/vscode_dumpcode"
@@ -12,7 +12,15 @@
         "vscode": "^1.54.0"
     },
     "categories": [
+        "Programming Languages",
         "Other"
+    ],
+    "keywords": [
+        "chatgpt",
+        "llm",
+        "review",
+        "AI",
+        "document"
     ],
     "activationEvents": [],
     "main": "./dist/extension.js",

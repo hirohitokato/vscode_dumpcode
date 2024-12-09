@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.1.3 - 2024/12/09
+
+-   Improved package information
+
 ## 1.1.2 - 2024/12/09
 
 -   Improved UI
