@@ -49,17 +49,17 @@ import * as vscode from "vscode";
 
 #### `dumpSource.outputFileName`
 
--   Type: string
--   Default: "dump.txt"
--   Description: Specifies the name of the file where aggregated content will be stored.
--   Example: "merged_sources.txt"
+-   **Type**: string
+-   **Default**: "aggregated_sources.txt"
+-   **Description**: Specifies the name of the file where aggregated content will be stored.
+-   **Example**: "merged_sources.txt"
 
 #### `dumpSource.extensions`
 
--   Type: array of string
--   Default: ["*.md", ".vscode", "package-lock.json"]
--   Description: A list of file and directory patterns to ignore during processing. Patterns use .gitignore-like syntax, supporting wildcards (\*, \*\*).
--   Examples:
+-   **Type**: array of string
+-   **Default**: ["*.md", ".vscode", "package-lock.json"]
+-   **Description**: A list of file and directory patterns to ignore during processing. Patterns use .gitignore-like syntax, supporting wildcards (`\*`, `\*\*`).
+-   **Examples**:
     -   `["*.md"]`: Ignore all Markdown files.
     -   `["dir/**/*.txt"]`: Ignore all .txt files within the dir directory and its subdirectories.
 

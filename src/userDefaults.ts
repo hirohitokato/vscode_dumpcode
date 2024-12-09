@@ -5,7 +5,10 @@ export class UserDefaults {
 
     // 出力ファイル名を取得
     get outputFileName(): string {
-        return this.config.get<string>("outputFileName", "dump.txt");
+        return this.config.get<string>(
+            "outputFileName",
+            "aggregated_sources.txt"
+        );
     }
 
     // 拡張子一覧を取得（配列を整形）

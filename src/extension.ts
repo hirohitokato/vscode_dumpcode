@@ -24,19 +24,16 @@ export function activate(context: vscode.ExtensionContext) {
         async (uri: vscode.Uri) => {
             // VS Codeが開いているフォルダー内で選択されたフォルダーの絶対パス
             const folderPath = uri.fsPath;
-            // コマンド実行時の処理部分
-            const userDefaults = new UserDefaults();
-            vscode.window.showInformationMessage(
-                `Selected folder: ${folderPath}`
-            );
             let files: string[] = [];
+
+            const userDefaults = new UserDefaults();
 
             // 処理全体を２つのプログレスインジケーター内で実行
             // 1.ファイル収集
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Window,
-                    title: "(1/2) Retrieving files...",
+                    title: `(1/2) Retrieving files in ${folderPath}...`,
                 },
                 async () => {
                     // ファイル一覧取得
