@@ -40,14 +40,17 @@ export function activate(context: vscode.ExtensionContext) {
                 },
                 async () => {
                     // ファイル一覧取得
-                    files = await getFiles(folderPath, userDefaults.extensions);
+                    files = await getFiles(
+                        folderPath,
+                        userDefaults.ignorePatterns
+                    );
                 }
             );
             // 2.ダンプ処理
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Window,
-                    title: "(2/2) Generating dumped files...",
+                    title: `(2/2) Generating "${userDefaults.outputFileName}"...`,
                 },
                 async () => {
                     // ファイル内容ダンプ

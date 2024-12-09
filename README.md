@@ -2,6 +2,31 @@
 
 "Dump Sources" is a Visual Studio Code extension designed to help you quickly aggregate text-based source files from a specific directory into a single output file. This is particularly useful when preparing code for large language models (LLMs) or when you need a consolidated view of certain files for review, documentation, or analysis.
 
+![screenshot](./assets/screenshot.jpg)
+
+↓
+
+```txt
+########## .gitignore ##########
+out
+dist
+...
+
+########## .prettierrc ##########
+{
+  "tabWidth": 4
+}
+
+########## package.json ##########
+{
+    "name": "dump-sourcecode",
+    ...
+
+########## src\extension.ts ##########
+import * as vscode from "vscode";
+...
+```
+
 ## Key Features
 
 -   **Bulk Code Input for AI**: Easily combine source code files from a chosen directory into one output file, perfect for providing a single large input to AI models.
@@ -9,8 +34,7 @@
 -   **.gitignore Support**: Automatically skip files and directories that match `.gitignore` rules, ensuring that only relevant files are included.
 -   **Flexible Configuration**:
     -   Customize the output filename
-    -   Specify a list of file extensions to include  
-        Tailor these settings to fit your project’s unique requirements.
+    -   Specify a list of file/directory patterns to exclude
 
 ## How to Use
 
@@ -23,12 +47,21 @@
 
 ## Extension Settings
 
--   `dumpSource.outputFileName` (default: `dump.txt`)  
-    Specifies the name of the output file.
+#### `dumpSource.outputFileName`
 
--   `dumpSource.extensions` (default: `["txt", "ts", "js", "c"]`)  
-    An array of file extensions to include (no leading dot required).  
-    For example, `["md", "py"]` includes `.md` and `.py` files in the output.
+-   Type: string
+-   Default: "dump.txt"
+-   Description: Specifies the name of the file where aggregated content will be stored.
+-   Example: "merged_sources.txt"
+
+#### `dumpSource.extensions`
+
+-   Type: array of string
+-   Default: ["*.md", ".vscode", "package-lock.json"]
+-   Description: A list of file and directory patterns to ignore during processing. Patterns use .gitignore-like syntax, supporting wildcards (\*, \*\*).
+-   Examples:
+    -   `["*.md"]`: Ignore all Markdown files.
+    -   `["dir/**/*.txt"]`: Ignore all .txt files within the dir directory and its subdirectories.
 
 ## Use Cases
 

@@ -25,15 +25,21 @@ import { Dirent } from "fs";
  * ソースコードやテキストファイルに特化した一覧取得が可能となる。
  *
  * @param dirPath 探索を開始するディレクトリの絶対パス
- * @param extensions 取得対象となるファイルの拡張子一覧
+ * @param ignorePatterns 無視するファイルパターンの一覧
  * @returns テキストファイルのみを含むファイルパスの配列
  */
 export async function getFiles(
     dirPath: string,
-    extensions: string[]
+    ignorePatterns: string[]
 ): Promise<string[]> {
+    // ユーザー指定の無視パターンをignoreインスタンスに適用
+    // 下記では、ユーザーパターンを新たなIgnoreインスタンスとして生成し、
+    // 他の.gitignore由来のルールと同様に取り扱う。
+    const userIgnore = ignore();
+    userIgnore.add(ignorePatterns);
+
     const files: string[] = [];
-    await traverseDirectory(dirPath, files, dirPath, [], extensions);
+    await traverseDirectory(dirPath, files, dirPath, [], userIgnore);
     return files;
 }
 
@@ -65,7 +71,7 @@ export async function dumpFilesContent(
     for (const file of files) {
         // 区切り行に記載するための相対パスを求める
         const relative = path.relative(rootDir, file);
-        const separator = `\n\n########## ${relative} ##########\n\n`;
+        const separator = `\n########## ${relative} ##########\n`;
 
         // 区切り行を書き込み
         await fs.appendFile(dumpPath, separator, "utf8");
@@ -90,14 +96,14 @@ export async function dumpFilesContent(
  * @param files 結果格納用のファイルパス配列
  * @param rootDir 初期ルートディレクトリ（相対パス計算用）
  * @param ignoreStack 上位階層で読込んだIgnoreインスタンスのスタック
- * @param extensions 取得対象となるファイル拡張子の一覧
+ * @param userIgnore .gitignore以外に無視するファイルパターンの一覧
  */
 async function traverseDirectory(
     currentPath: string,
     files: string[],
     rootDir: string,
     ignoreStack: Ignore[],
-    extensions: string[]
+    userIgnore: Ignore
 ) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
 
@@ -119,7 +125,15 @@ async function traverseDirectory(
             .replace(/\\/g, "/");
 
         // 無視対象かどうかを総合判定
-        if (await shouldIgnore(fullPath, relativePath, entry, newIgnoreStack)) {
+        if (
+            await shouldIgnore(
+                fullPath,
+                relativePath,
+                entry,
+                newIgnoreStack,
+                userIgnore
+            )
+        ) {
             continue; // 無視対象ならスキップ
         }
 
@@ -131,14 +145,10 @@ async function traverseDirectory(
                 files,
                 rootDir,
                 newIgnoreStack,
-                extensions
+                userIgnore
             );
         } else if (entry.isFile()) {
-            const ext = path.extname(fullPath).toLowerCase();
-            // 設定された拡張子に合致する場合のみ追加
-            if (extensions.includes(ext)) {
-                files.push(fullPath);
-            }
+            files.push(fullPath);
         }
     }
 }
@@ -156,13 +166,15 @@ async function traverseDirectory(
  * @param relativePath ルートディレクトリからの相対パス
  * @param entry ディレクトリエントリ情報(Dirent)
  * @param ignoreStack 階層的に積み重ねられたIgnoreインスタンスのスタック
+ * @param userIgnore .gitignore以外の無視するファイルパターン
  * @returns 無視すべきならtrue、そうでなければfalse
  */
 async function shouldIgnore(
     fullPath: string,
     relativePath: string,
     entry: Dirent,
-    ignoreStack: Ignore[]
+    ignoreStack: Ignore[],
+    userIgnore: Ignore
 ): Promise<boolean> {
     // .gitディレクトリはソースコード一覧には不要なので無視
     if (entry.isDirectory() && entry.name === ".git") {
@@ -175,6 +187,11 @@ async function shouldIgnore(
         if (binary) {
             return true;
         }
+    }
+
+    // ユーザー指定の無視パターンチェック（共通ルール）
+    if (userIgnore.ignores(relativePath)) {
+        return true;
     }
 
     // .gitignoreルールで無視対象かをチェック

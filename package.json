@@ -1,8 +1,9 @@
 {
     "name": "dump-sourcecode",
     "displayName": "Dump Sources Extension",
-    "description": "This Visual Studio Code extension adds a \"Dump Sources\" command to the explorer context menu. When you right-click on a folder, it gathers all text-based files that match user-specified file extensions, excluding files ignored by .gitignore and binary files, and concatenates their contents into a single output file. Users can configure the output file name and the list of target file extensions in the VS Code settings.",
-    "version": "0.0.1",
+    "description": "The extension gathers all source files in the specified folder and concatenates their contents into a single text file.",
+    "icon": "assets/icon.png",
+    "version": "1.1.1",
     "publisher": "hkato193",
     "repository": {
         "url": "https://github.com/hirohitokato/vscode_dumpcode"
@@ -19,7 +20,7 @@
         "commands": [
             {
                 "command": "dump-sourcecode.dump_files",
-                "title": "Dump files to a .txt"
+                "title": "Dump files to a single file"
             }
         ],
         "menus": {
@@ -39,16 +40,15 @@
                     "default": "dump.txt",
                     "description": "The name of the output file that will store the concatenated contents of all collected text-based files."
                 },
-                "dumpSource.extensions": {
+                "dumpSource.userIgnorePatterns": {
                     "type": "array",
                     "items": "string",
                     "default": [
-                        "txt",
-                        "ts",
-                        "js",
-                        "c"
+                        "*.md",
+                        ".vscode",
+                        "package-lock.json"
                     ],
-                    "description": "A list of file extensions to include during the dumping process (without leading dots). For example: [\"txt\", \"ts\", \"js\", \"c\"]."
+                    "description": "A list of ignore patterns for files and directories (similar to .gitignore syntax). For example, \"*.md\" ignores all Markdown files and \"dir/**/*.txt\" ignores all .txt files under the \"dir\" directory."
                 }
             }
         }
