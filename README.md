@@ -7,11 +7,6 @@
 ↓
 
 ```txt
-########## .gitignore ##########
-out
-dist
-...
-
 ########## .prettierrc ##########
 {
   "tabWidth": 4
@@ -24,6 +19,10 @@ dist
 
 ########## src\extension.ts ##########
 import * as vscode from "vscode";
+...
+
+########## src\fileProcessor.ts ##########
+import * as path from "path";
 ...
 ```
 
