@@ -3,13 +3,13 @@
     "displayName": "Dump Sources Extension",
     "description": "The extension gathers all source files in the specified folder and concatenates their contents into a single text file.",
     "icon": "assets/icon.png",
-    "version": "1.1.4",
+    "version": "2.0.0",
     "publisher": "hkato193",
     "repository": {
         "url": "https://github.com/hirohitokato/vscode_dumpcode"
     },
     "engines": {
-        "vscode": "^1.54.0"
+        "vscode": "^1.75.0"
     },
     "categories": [
         "Programming Languages",
@@ -25,18 +25,79 @@
     "activationEvents": [],
     "main": "./dist/extension.js",
     "contributes": {
+        "views": {
+            "explorer": [
+                {
+                    "id": "dump-sourcecode.targetTreeView",
+                    "name": "Dump Sourcecode"
+                }
+            ]
+        },
         "commands": [
             {
-                "command": "dump-sourcecode.dump_files",
-                "title": "Dump files to a single file"
+                "command": "dump-sourcecode.copySelected",
+                "title": "Dump Selections to Clipboard",
+                "icon": "$(clippy)"
+            },
+            {
+                "command": "dump-sourcecode.refreshTree",
+                "title": "Refresh Tree",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "dump-sourcecode.clearSelection",
+                "title": "Clear Selection",
+                "icon": "$(clear-all)"
+            },
+            {
+                "command": "dump-sourcecode.dump_files_to_file",
+                "title": "Dump files to a file"
+            },
+            {
+                "command": "dump-sourcecode.dump_files_to_clipboard",
+                "title": "Dump files to Clipboard"
             }
         ],
         "menus": {
+            "view/item/context": [
+                {
+                    "command": "dump-sourcecode.copySelected",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "command@10"
+                },
+                {
+                    "command": "dump-sourcecode.clearSelection",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "options@12"
+                }
+            ],
             "explorer/context": [
                 {
-                    "command": "dump-sourcecode.dump_files",
-                    "when": "explorerResourceIsFolder",
-                    "group": "navigation"
+                    "command": "dump-sourcecode.dump_files_to_file",
+                    "when": "explorerResourceIsFolder && config.dumpSource.defaultDumpTarget == 'file'",
+                    "group": "navigation@999"
+                },
+                {
+                    "command": "dump-sourcecode.dump_files_to_clipboard",
+                    "when": "explorerResourceIsFolder && config.dumpSource.defaultDumpTarget == 'clipboard'",
+                    "group": "navigation@999"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "dump-sourcecode.refreshTree",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "dump-sourcecode.clearSelection",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "dump-sourcecode.copySelected",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@3"
                 }
             ]
         },
@@ -46,7 +107,7 @@
                 "dumpSource.outputFileName": {
                     "type": "string",
                     "default": "aggregated_sources.txt",
-                    "description": "The name of the output file that will store the concatenated contents of all collected text-based files."
+                    "description": "The name of the output file that will store the concatenated contents of all collected text-based files.\n\nThis settings affects only when the 'Dump files to...' command is executed from the Explorer view and the target is set to 'file'."
                 },
                 "dumpSource.userIgnorePatterns": {
                     "type": "array",
@@ -56,7 +117,16 @@
                         ".vscode",
                         "package-lock.json"
                     ],
-                    "description": "A list of ignore patterns for files and directories (similar to .gitignore syntax). For example, \"*.md\" ignores all Markdown files and \"dir/**/*.txt\" ignores all .txt files under the \"dir\" directory."
+                    "description": "A list of ignore patterns for files and directories (similar to .gitignore syntax). For example, \"*.md\" ignores all Markdown files and \"dir/**/*.txt\" ignores all .txt files under the \"dir\" directory.\n\nThis settings affects only when the 'Dump files to...' command is executed from the Explorer view."
+                },
+                "dumpSource.defaultDumpTarget": {
+                    "type": "string",
+                    "enum": [
+                        "file",
+                        "clipboard"
+                    ],
+                    "default": "clipboard",
+                    "description": "The default output destination when you right-click in the Explorer view and select 'Dump files to...'. 'file' = output to a file, 'clipboard' = copy to clipboard."
                 }
             }
         }
@@ -87,7 +157,7 @@
         "@typescript-eslint/parser": "^8.7.0",
         "@vscode/test-cli": "^0.0.10",
         "@vscode/test-electron": "^2.4.1",
-        "esbuild": "^0.24.0",
+        "esbuild": "^0.25.5",
         "eslint": "^9.13.0",
         "npm-run-all": "^4.1.5",
         "typescript": "^5.6.3"
