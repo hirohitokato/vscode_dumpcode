@@ -94,12 +94,10 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
     /* ディレクトリ再帰チェック */
     public async markRecursively(dirPath: string): Promise<void> {
         const paths: string[] = [];
-        await this.collectFiles(dirPath, paths);
-
-        /* ディレクトリ自身も入れておくと UI が対称的 */
-        paths.push(dirPath);
-
-        for (const p of paths) this.checked.add(p);
+        await this.collectAllPaths(dirPath, paths);
+        for (const p of paths) {
+            this.checked.add(p);
+        }
         this.persist();
         this.refresh();
     }
@@ -191,16 +189,28 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         return nodes;
     }
 
-    private async collectFiles(dir: string, acc: string[]): Promise<void> {
+    /**
+     * ディレクトリもファイルも含めて再帰的にパスを収集
+     */
+    private async collectAllPaths(
+        current: string,
+        acc: string[],
+    ): Promise<void> {
+        // 自身も登録
+        acc.push(current);
+
+        // 子要素を列挙
         const entries = await vscode.workspace.fs.readDirectory(
-            vscode.Uri.file(dir),
+            vscode.Uri.file(current),
         );
         for (const [name, type] of entries) {
-            const full = path.join(dir, name);
+            const child = path.join(current, name);
             if (type === vscode.FileType.Directory) {
-                await this.collectFiles(full, acc);
+                // サブディレクトリ → 再帰
+                await this.collectAllPaths(child, acc);
             } else if (type === vscode.FileType.File) {
-                acc.push(full);
+                // ファイル → そのまま登録
+                acc.push(child);
             }
         }
     }

@@ -3,7 +3,7 @@
     "displayName": "Dump Sources Extension",
     "description": "The extension gathers all source files in the specified folder and concatenates their contents into a single text file.",
     "icon": "assets/icon.png",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "publisher": "hkato193",
     "repository": {
         "url": "https://github.com/hirohitokato/vscode_dumpcode"
@@ -51,7 +51,7 @@
             },
             {
                 "command": "dump-sourcecode.dump_files_to_file",
-                "title": "Dump files to a file"
+                "title": "Dump files to single file"
             },
             {
                 "command": "dump-sourcecode.dump_files_to_clipboard",
@@ -75,12 +75,12 @@
                 {
                     "command": "dump-sourcecode.dump_files_to_file",
                     "when": "explorerResourceIsFolder && config.dumpSource.defaultDumpTarget == 'file'",
-                    "group": "navigation@999"
+                    "group": "dump-sourcecode@999"
                 },
                 {
                     "command": "dump-sourcecode.dump_files_to_clipboard",
                     "when": "explorerResourceIsFolder && config.dumpSource.defaultDumpTarget == 'clipboard'",
-                    "group": "navigation@999"
+                    "group": "dump-sourcecode@999"
                 }
             ],
             "view/title": [

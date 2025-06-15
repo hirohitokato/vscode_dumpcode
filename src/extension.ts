@@ -31,6 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
         {
             treeDataProvider: treeProvider,
             canSelectMany: true,
+            manageCheckboxStateManually: true,
         },
     );
     context.subscriptions.push(treeView);
