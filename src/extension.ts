@@ -77,10 +77,10 @@ export function activate(context: vscode.ExtensionContext) {
     /* ツリービュー生成 ------------- */
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
 
-  // ファイルツリー表示用プロバイダーを常に登録
+    // ファイルツリー表示用プロバイダーを常に登録
     const treeProvider = new FileTreeProvider(workspaceRoot, context);
 
-    const treeView = vscode.window.createTreeView("myFileExplorer", {
+    const treeView = vscode.window.createTreeView("dump-sourcecode.targetTreeView", {
         treeDataProvider: treeProvider,
         canSelectMany: true,
     });
@@ -88,14 +88,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     /* チェック状態の変化を捕捉して Provider に反映 */
     treeView.onDidChangeCheckboxState((e) => {
-        const changed = e.items.length
-            ? e.items
-            : treeView.visible
-            ? e.items
-            : [];
-        for (const [node, checkboxState] of changed) {
+        for (const [node, checkState] of e.items) {
             const checked =
-                checkboxState === vscode.TreeItemCheckboxState.Checked;
+                checkState === vscode.TreeItemCheckboxState.Checked;
             checked
                 ? treeProvider.markChecked(node.uri.fsPath)
                 : treeProvider.unmarkChecked(node.uri.fsPath);
@@ -132,12 +127,18 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(copyDisposable);
 
     /* ツリーをリフレッシュ */
-    context.subscriptions.push(
-        vscode.commands.registerCommand(
-            "dump-sourcecode.refreshTree",
-            () => treeProvider.refresh(),
-        ),
+    const refreshDisposable = vscode.commands.registerCommand(
+        "dump-sourcecode.refreshTree",
+        () => treeProvider.refresh(),
     );
+    context.subscriptions.push(refreshDisposable);
+
+    /* ---------------- すべてのチェックを解除 ---------------- */
+    const clearDisposable = vscode.commands.registerCommand(
+        "dump-sourcecode.clearSelection",
+        () => treeProvider.clearAllChecked(),
+    );
+    context.subscriptions.push(clearDisposable);
 }
 
 /**

@@ -87,6 +87,14 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         this.persist();
         this.refresh();
     }
+    /** すべてのチェックを外す */
+    public clearAllChecked(): void {
+        if (this.checked.size === 0) return;
+        this.checked.clear();
+        this.persist();
+        this.refresh();
+    }
+
     /** コピー用にチェック済みノードを返却 */
     public getCheckedNodes(): FileNode[] {
         return Array.from(this.checked)

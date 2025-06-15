@@ -28,7 +28,7 @@
         "views": {
             "explorer": [
                 {
-                    "id": "myFileExplorer",
+                    "id": "dump-sourcecode.targetTreeView",
                     "name": "ファイル・フォルダ選択ビュー"
                 }
             ]
@@ -36,11 +36,18 @@
         "commands": [
             {
                 "command": "dump-sourcecode.copySelected",
-                "title": "選択したファイルをコピー"
+                "title": "Dump Selections",
+                "icon": "$(clippy)"
             },
             {
                 "command": "dump-sourcecode.refreshTree",
-                "title": "ツリーを更新"
+                "title": "Refresh Tree",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "dump-sourcecode.clearSelection",
+                "title": "Clear Selection",
+                "icon": "$(clear-all)"
             },
             {
                 "command": "dump-sourcecode.dump_files",
@@ -53,6 +60,23 @@
                     "command": "dump-sourcecode.dump_files",
                     "when": "explorerResourceIsFolder",
                     "group": "navigation"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "dump-sourcecode.refreshTree",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "dump-sourcecode.clearSelection",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "dump-sourcecode.copySelected",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@3"
                 }
             ]
         },
