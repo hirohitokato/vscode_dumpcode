@@ -80,20 +80,29 @@ export function activate(context: vscode.ExtensionContext) {
     // ファイルツリー表示用プロバイダーを常に登録
     const treeProvider = new FileTreeProvider(workspaceRoot, context);
 
-    const treeView = vscode.window.createTreeView("dump-sourcecode.targetTreeView", {
-        treeDataProvider: treeProvider,
-        canSelectMany: true,
-    });
+    // ツリービューの初期化
+    const treeView = vscode.window.createTreeView(
+        "dump-sourcecode.targetTreeView",
+        {
+            treeDataProvider: treeProvider,
+            canSelectMany: true,
+        },
+    );
     context.subscriptions.push(treeView);
 
     /* チェック状態の変化を捕捉して Provider に反映 */
-    treeView.onDidChangeCheckboxState((e) => {
-        for (const [node, checkState] of e.items) {
-            const checked =
-                checkState === vscode.TreeItemCheckboxState.Checked;
-            checked
-                ? treeProvider.markChecked(node.uri.fsPath)
-                : treeProvider.unmarkChecked(node.uri.fsPath);
+    treeView.onDidChangeCheckboxState(async (e) => {
+        for (const [node, state] of e.items) {
+            const isChecked = state === vscode.TreeItemCheckboxState.Checked;
+            if (isChecked) {
+                node.isDirectory
+                    ? await treeProvider.markRecursively(node.uri.fsPath) // ★追加
+                    : treeProvider.markChecked(node.uri.fsPath);
+            } else {
+                node.isDirectory
+                    ? treeProvider.unmarkRecursively(node.uri.fsPath) // 既存実装
+                    : treeProvider.unmarkChecked(node.uri.fsPath);
+            }
         }
     });
 
@@ -101,8 +110,20 @@ export function activate(context: vscode.ExtensionContext) {
     const copyDisposable = vscode.commands.registerCommand(
         "dump-sourcecode.copySelected",
         async () => {
-            const checked = await treeProvider.getCheckedNodes();
-            if (checked.length === 0) {
+            const checkedPaths = treeProvider.getCheckedPaths();
+            const filePaths: string[] = [];
+            for (const p of checkedPaths) {
+                const stat = await vscode.workspace.fs.stat(vscode.Uri.file(p));
+
+                // ディレクトリを除外（Directory フラグが立っていなければファイル）
+                const isDirectory =
+                    (stat.type & vscode.FileType.Directory) !== 0;
+                if (!isDirectory) {
+                    filePaths.push(p);
+                }
+            }
+
+            if (filePaths.length === 0) {
                 vscode.window.showInformationMessage(
                     "No files selected. Please check some files first.",
                 );
@@ -110,12 +131,11 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             let dumpText = "";
-            for (const node of checked) {
-                if (node.isDirectory) {
-                    continue; // ディレクトリはスキップ
-                }
-                const bytes = await vscode.workspace.fs.readFile(node.uri);
-                dumpText += `\n########## ${node.uri.fsPath} ##########\n`;
+            for (const p of filePaths) {
+                const bytes = await vscode.workspace.fs.readFile(
+                    vscode.Uri.file(p),
+                );
+                dumpText += `\n########## ${p} ##########\n`;
                 dumpText += new TextDecoder().decode(bytes) + "\n";
             }
             await vscode.env.clipboard.writeText(dumpText);

@@ -65,28 +65,65 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         }
     }
 
-    /* ========== 永続化付きチェック集合操作 ========== */
+    /** チェック状態を永続化 */
     private persist(): void {
         this.context.workspaceState.update(
             this.stateKey,
             Array.from(this.checked),
         );
     }
+    /** 指定パスがチェック済みかどうか */
     public isChecked(p: string) {
         return this.checked.has(p);
     }
+    /** チェックを付ける */
     public markChecked(p: string) {
         if (this.checked.has(p)) return;
         this.checked.add(p);
         this.persist();
         this.refresh();
     }
+    /** 指定パスのチェックを外す */
     public unmarkChecked(p: string) {
         if (!this.checked.has(p)) return;
         this.checked.delete(p);
         this.persist();
         this.refresh();
     }
+
+    /* ディレクトリ再帰チェック */
+    public async markRecursively(dirPath: string): Promise<void> {
+        const paths: string[] = [];
+        await this.collectFiles(dirPath, paths);
+
+        /* ディレクトリ自身も入れておくと UI が対称的 */
+        paths.push(dirPath);
+
+        for (const p of paths) this.checked.add(p);
+        this.persist();
+        this.refresh();
+    }
+
+    /** パス集合をそのまま返すユーティリティ */
+    public getCheckedPaths(): string[] {
+        return Array.from(this.checked);
+    }
+
+    /** 指定ディレクトリ以下のすべてのチェックを外す */
+    public unmarkRecursively(dirPath: string): void {
+        const prefix = dirPath.endsWith(path.sep)
+            ? dirPath
+            : dirPath + path.sep;
+
+        for (const p of Array.from(this.checked)) {
+            if (p === dirPath || p.startsWith(prefix)) {
+                this.checked.delete(p);
+            }
+        }
+        this.persist();
+        this.refresh();
+    }
+
     /** すべてのチェックを外す */
     public clearAllChecked(): void {
         if (this.checked.size === 0) return;
@@ -101,6 +138,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             .map((p) => this.nodeCache.get(p))
             .filter((n): n is FileNode => !!n);
     }
+
     public refresh(): void {
         this._onDidChangeTreeData.fire();
     }
@@ -144,5 +182,19 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         );
 
         return nodes;
+    }
+
+    private async collectFiles(dir: string, acc: string[]): Promise<void> {
+        const entries = await vscode.workspace.fs.readDirectory(
+            vscode.Uri.file(dir),
+        );
+        for (const [name, type] of entries) {
+            const full = path.join(dir, name);
+            if (type === vscode.FileType.Directory) {
+                await this.collectFiles(full, acc);
+            } else if (type === vscode.FileType.File) {
+                acc.push(full);
+            }
+        }
     }
 }

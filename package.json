@@ -55,11 +55,23 @@
             }
         ],
         "menus": {
+            "view/item/context": [
+                {
+                    "command": "dump-sourcecode.copySelected",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "command@10"
+                },
+                {
+                    "command": "dump-sourcecode.clearSelection",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "options@12"
+                }
+            ],
             "explorer/context": [
                 {
                     "command": "dump-sourcecode.dump_files",
                     "when": "explorerResourceIsFolder",
-                    "group": "navigation"
+                    "group": "navigation@999"
                 }
             ],
             "view/title": [
