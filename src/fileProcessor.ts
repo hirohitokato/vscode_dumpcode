@@ -214,15 +214,44 @@ async function shouldIgnore(
  * @param dirPath 対象ディレクトリパス
  * @returns Ignoreインスタンス、または.gitignoreがなければnull
  */
-async function createIgnore(dirPath: string): Promise<Ignore | null> {
-    const gitignorePath = path.join(dirPath, ".gitignore");
-    if (await exists(gitignorePath)) {
-        const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
-        const ig = ignore();
-        ig.add(gitignoreContent);
-        return ig;
+// async function createIgnore(dirPath: string): Promise<Ignore | null> {
+//     const gitignorePath = path.join(dirPath, ".gitignore");
+//     if (await exists(gitignorePath)) {
+//         const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
+//         const ig = ignore();
+//         ig.add(gitignoreContent);
+//         return ig;
+//     }
+//     return null;
+// }
+async function createIgnore(dirPath: string): Promise<Ignore> {
+    let currentPath = dirPath;
+    const ig = ignore();
+
+    while (currentPath !== path.parse(currentPath).root) {
+        const gitignorePath = path.join(currentPath, ".gitignore");
+
+        if (await exists(gitignorePath)) {
+            const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
+            ig.add(gitignoreContent);
+        }
+
+        currentPath = path.dirname(currentPath); // 親ディレクトリへ移動
     }
-    return null;
+
+    currentPath = dirPath;
+    while (currentPath !== path.parse(currentPath).root) {
+        const gitignorePath = path.join(currentPath, ".vscodeignore");
+
+        if (await exists(gitignorePath)) {
+            const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
+            ig.add(gitignoreContent);
+        }
+
+        currentPath = path.dirname(currentPath); // 親ディレクトリへ移動
+    }
+
+    return ig;
 }
 
 /**

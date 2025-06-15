@@ -54,7 +54,7 @@ import * as vscode from "vscode";
 -   **Description**: Specifies the name of the file where aggregated content will be stored.
 -   **Example**: "merged_sources.txt"
 
-#### `dumpSource.extensions`
+#### `dumpSource.userIgnorePatterns`
 
 -   **Type**: array of string
 -   **Default**: ["*.md", ".vscode", "package-lock.json"]
