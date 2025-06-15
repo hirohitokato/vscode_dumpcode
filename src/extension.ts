@@ -78,7 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
 
   // ファイルツリー表示用プロバイダーを常に登録
-    const treeProvider = new FileTreeProvider(workspaceRoot);
+    const treeProvider = new FileTreeProvider(workspaceRoot, context);
 
     const treeView = vscode.window.createTreeView("myFileExplorer", {
         treeDataProvider: treeProvider,

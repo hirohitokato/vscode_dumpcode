@@ -4,7 +4,6 @@ import { isBinaryFile } from "isbinaryfile";
 
 /* ---------- FileNode ---------- */
 export class FileNode extends vscode.TreeItem {
-    /** バイナリなら true */
     constructor(
         public readonly uri: vscode.Uri,
         public readonly isDirectory: boolean,
@@ -42,27 +41,50 @@ export class FileNode extends vscode.TreeItem {
 
 /* ---------- FileTreeProvider ---------- */
 export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
+    private readonly checked = new Set<string>();
+    private readonly nodeCache = new Map<string, FileNode>();
+    private readonly stateKey: string; // workspaceState 用キー
+
     private _onDidChangeTreeData = new vscode.EventEmitter<FileNode | void>();
-    public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    /* チェック済みパス集合（バイナリ・不可視ファイルは含めない） */
-    private checked = new Set<string>();
-
-    /* ノードキャッシュ（fsPath → FileNode） */
-    private nodeCache = new Map<string, FileNode>();
-
-    constructor(private readonly workspaceRoot?: vscode.Uri) {}
-
-    /* ---------- 公開 API ---------- */
-    public isChecked(fsPath: string) {
-        return this.checked.has(fsPath);
+    constructor(
+        private readonly workspaceRoot: vscode.Uri | undefined,
+        private readonly context: vscode.ExtensionContext,
+    ) {
+        if (workspaceRoot) {
+            this.stateKey = `checkedPaths:${workspaceRoot.fsPath}`;
+            // 保存済みチェック状態を復元
+            const saved = context.workspaceState.get<string[]>(
+                this.stateKey,
+                [],
+            );
+            saved.forEach((p) => this.checked.add(p));
+        } else {
+            this.stateKey = "checkedPaths:<no-workspace>";
+        }
     }
-    public markChecked(fsPath: string) {
-        this.checked.add(fsPath);
+
+    /* ========== 永続化付きチェック集合操作 ========== */
+    private persist(): void {
+        this.context.workspaceState.update(
+            this.stateKey,
+            Array.from(this.checked),
+        );
+    }
+    public isChecked(p: string) {
+        return this.checked.has(p);
+    }
+    public markChecked(p: string) {
+        if (this.checked.has(p)) return;
+        this.checked.add(p);
+        this.persist();
         this.refresh();
     }
-    public unmarkChecked(fsPath: string) {
-        this.checked.delete(fsPath);
+    public unmarkChecked(p: string) {
+        if (!this.checked.has(p)) return;
+        this.checked.delete(p);
+        this.persist();
         this.refresh();
     }
     /** コピー用にチェック済みノードを返却 */
@@ -75,7 +97,6 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         this._onDidChangeTreeData.fire();
     }
 
-    /* ---------- TreeDataProvider 実装 ---------- */
     public getTreeItem(element: FileNode): vscode.TreeItem {
         element.syncCheckbox();
         return element;
@@ -83,13 +104,24 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
 
     public async getChildren(element?: FileNode): Promise<FileNode[]> {
         if (!this.workspaceRoot) return [];
-        const dirUri = element ? element.uri : this.workspaceRoot;
-        const entries = await vscode.workspace.fs.readDirectory(dirUri);
+
+        /* 最上位：ワークスペースルートを 1 ノードだけ返す */
+        if (!element) {
+            let rootNode = this.nodeCache.get(this.workspaceRoot.fsPath);
+            if (!rootNode) {
+                rootNode = new FileNode(this.workspaceRoot, true, this, false);
+                this.nodeCache.set(this.workspaceRoot.fsPath, rootNode);
+            }
+            return [rootNode];
+        }
+
+        /* 子要素列挙 */
+        const entries = await vscode.workspace.fs.readDirectory(element.uri);
 
         /* Promise でバイナリ判定を同時進行 */
         const nodes = await Promise.all(
             entries.map(async ([name, fileType]) => {
-                const uri = vscode.Uri.joinPath(dirUri, name);
+                const uri = vscode.Uri.joinPath(element.uri, name);
                 const isDir = fileType === vscode.FileType.Directory;
                 const isBin = !isDir &&
                     (await isBinaryFile(uri.fsPath).catch(() => false));
