@@ -85,6 +85,31 @@ export async function dumpFilesContent(
     // ここでの処理完了後、extension.ts側でユーザー通知を行うため、特に返り値やメッセージはなし
 }
 
+export async function readFilesContent(
+    rootDir: string,
+    dumpFileRelative: string,
+    files: string[]
+): Promise<string> {
+    let contents: string = "";
+
+    // 全ファイルについて処理
+    for (const file of files) {
+        // 区切り行に記載するための相対パスを求める
+        const relative = path.relative(rootDir, file);
+        const separator = `\n########## ${relative} ##########\n`;
+
+        // 区切り行を書き込み
+        contents += separator;
+
+        // ファイル内容を読み込み
+        const content = await fs.readFile(file, "utf8");
+        // ファイル内容を追記（最後に改行を入れることで整形）
+        contents += content + "\n";
+    }
+
+    return contents;
+}
+
 /**
  * traverseDirectory()
  *

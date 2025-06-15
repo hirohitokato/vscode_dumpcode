@@ -1,20 +1,16 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { isBinaryFile } from "isbinaryfile";
 
-/**
- * ファイルまたはフォルダを表すノード。
- * ツリーに表示するラベルにはファイル名（basename）のみを使用します。
- */
+/* ---------- FileNode ---------- */
 export class FileNode extends vscode.TreeItem {
-    /**
-     * @param uri ファイルまたはフォルダの URI
-     * @param isDirectory ディレクトリなら true
-     */
+    /** バイナリなら true */
     constructor(
         public readonly uri: vscode.Uri,
         public readonly isDirectory: boolean,
+        private readonly provider: FileTreeProvider,
+        private readonly isBinary: boolean,
     ) {
-        // basename のみをラベルに指定して表示を簡潔に
         super(
             path.basename(uri.fsPath),
             isDirectory
@@ -24,47 +20,89 @@ export class FileNode extends vscode.TreeItem {
 
         this.resourceUri = uri;
         this.contextValue = isDirectory ? "folder" : "file";
+
+        /* バイナリファイルはチェック無し & アイコン変更 */
+        if (this.isBinary) {
+            this.iconPath = new vscode.ThemeIcon("file-binary");
+            // checkboxState を設定しない ⇒ チェックボックス非表示
+        } else {
+            this.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
+        }
+    }
+
+    /** 描画直前にチェック状態を同期 */
+    public syncCheckbox(): void {
+        if (!this.isBinary) {
+            this.checkboxState = this.provider.isChecked(this.uri.fsPath)
+                ? vscode.TreeItemCheckboxState.Checked
+                : vscode.TreeItemCheckboxState.Unchecked;
+        }
     }
 }
 
-/**
- * ワークスペース配下のファイル／フォルダ構造を
- * VS Code のツリーとして提供する DataProvider。
- */
+/* ---------- FileTreeProvider ---------- */
 export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
     private _onDidChangeTreeData = new vscode.EventEmitter<FileNode | void>();
-    /** ツリー更新イベント */
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    /**
-     * @param workspaceRoot ワークスペースのルート URI（未設定時は undefined）
-     */
+    /* チェック済みパス集合（バイナリ・不可視ファイルは含めない） */
+    private checked = new Set<string>();
+
+    /* ノードキャッシュ（fsPath → FileNode） */
+    private nodeCache = new Map<string, FileNode>();
+
     constructor(private readonly workspaceRoot?: vscode.Uri) {}
 
-    /** ツリーを再描画する */
+    /* ---------- 公開 API ---------- */
+    public isChecked(fsPath: string) {
+        return this.checked.has(fsPath);
+    }
+    public markChecked(fsPath: string) {
+        this.checked.add(fsPath);
+        this.refresh();
+    }
+    public unmarkChecked(fsPath: string) {
+        this.checked.delete(fsPath);
+        this.refresh();
+    }
+    /** コピー用にチェック済みノードを返却 */
+    public getCheckedNodes(): FileNode[] {
+        return Array.from(this.checked)
+            .map((p) => this.nodeCache.get(p))
+            .filter((n): n is FileNode => !!n);
+    }
     public refresh(): void {
         this._onDidChangeTreeData.fire();
     }
 
-    /** TreeItem を返却 */
+    /* ---------- TreeDataProvider 実装 ---------- */
     public getTreeItem(element: FileNode): vscode.TreeItem {
+        element.syncCheckbox();
         return element;
     }
 
-    /**
-     * 指定ノードの子要素を取得。
-     * workspaceRoot がない場合は空配列を返す。
-     */
     public async getChildren(element?: FileNode): Promise<FileNode[]> {
-        if (!this.workspaceRoot) {
-            return [];
-        }
+        if (!this.workspaceRoot) return [];
         const dirUri = element ? element.uri : this.workspaceRoot;
         const entries = await vscode.workspace.fs.readDirectory(dirUri);
-        return entries.map(([name, fileType]) => {
-            const uri = vscode.Uri.joinPath(dirUri, name);
-            const isDirectory = fileType === vscode.FileType.Directory;
-            return new FileNode(uri, isDirectory);
-        });
+
+        /* Promise でバイナリ判定を同時進行 */
+        const nodes = await Promise.all(
+            entries.map(async ([name, fileType]) => {
+                const uri = vscode.Uri.joinPath(dirUri, name);
+                const isDir = fileType === vscode.FileType.Directory;
+                const isBin = !isDir &&
+                    (await isBinaryFile(uri.fsPath).catch(() => false));
+
+                let node = this.nodeCache.get(uri.fsPath);
+                if (!node) {
+                    node = new FileNode(uri, isDir, this, isBin);
+                    this.nodeCache.set(uri.fsPath, node);
+                }
+                return node;
+            }),
+        );
+
+        return nodes;
     }
 }
