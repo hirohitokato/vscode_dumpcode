@@ -50,9 +50,14 @@
                 "icon": "$(clear-all)"
             },
             {
-                "command": "dump-sourcecode.dump_files",
-                "title": "Dump files to a single file"
+                "command": "dump-sourcecode.dump_files_to_file",
+                "title": "Dump files to a file"
+            },
+            {
+                "command": "dump-sourcecode.dump_files_to_clipboard",
+                "title": "Dump files to clipboard"
             }
+
         ],
         "menus": {
             "view/item/context": [
@@ -69,8 +74,13 @@
             ],
             "explorer/context": [
                 {
-                    "command": "dump-sourcecode.dump_files",
-                    "when": "explorerResourceIsFolder",
+                    "command": "dump-sourcecode.dump_files_to_file",
+                    "when": "explorerResourceIsFolder && config.dumpSource.defaultDumpTarget == 'file'",
+                    "group": "navigation@999"
+                },
+                {
+                    "command": "dump-sourcecode.dump_files_to_clipboard",
+                    "when": "explorerResourceIsFolder && config.dumpSource.defaultDumpTarget == 'clipboard'",
                     "group": "navigation@999"
                 }
             ],
@@ -109,6 +119,12 @@
                         "package-lock.json"
                     ],
                     "description": "A list of ignore patterns for files and directories (similar to .gitignore syntax). For example, \"*.md\" ignores all Markdown files and \"dir/**/*.txt\" ignores all .txt files under the \"dir\" directory."
+                },
+                "dumpSource.defaultDumpTarget": {
+                    "type": "string",
+                    "enum": ["file", "clipboard"],
+                    "default": "clipboard",
+                    "description": "The default output destination when you right-click in the Explorer view and select 'Dump files to...'. 'file' = output to a file, 'clipboard' = copy to clipboard."
                 }
             }
         }

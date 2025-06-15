@@ -3,6 +3,7 @@ import { FileTreeProvider } from "./fileTree";
 import { dumpFilesContent, getFiles, readFilesContent } from "./fileProcessor";
 import { UserDefaults } from "./userDefaults";
 import path from "path";
+import { handleDumpFiles } from "./services/dumpChildren";
 
 /**
  * VS Code エクステンションのエントリーポイントモジュール。
@@ -17,64 +18,8 @@ import path from "path";
  * @param context エクステンションの実行コンテキスト
  */
 export function activate(context: vscode.ExtensionContext) {
-    // "Dump Sources" コマンド登録
-    const dumpDisposable = vscode.commands.registerCommand(
-        "dump-sourcecode.dump_files",
-        async (uri: vscode.Uri) => {
-            const folderPath = uri.fsPath;
-            const userDefaults = new UserDefaults();
-            let files: string[] = [];
-
-            // 1) ファイル一覧の取得
-            await vscode.window.withProgress(
-                {
-                    location: vscode.ProgressLocation.Window,
-                    title: `(1/2) Retrieving files in ${folderPath}...`,
-                },
-                async () => {
-                    files = await getFiles(
-                        folderPath,
-                        userDefaults.ignorePatterns,
-                    );
-                },
-            );
-
-            // 2) ファイル内容ダンプおよび表示
-            await vscode.window.withProgress(
-                {
-                    location: vscode.ProgressLocation.Window,
-                    title:
-                        `(2/2) Generating "${userDefaults.outputFileName}"...`,
-                },
-                async () => {
-                    await dumpFilesContent(
-                        folderPath,
-                        userDefaults.outputFileName,
-                        files,
-                    );
-
-                    // ダンプ結果をエディタで開く
-                    const dumpPath = path.join(
-                        folderPath,
-                        userDefaults.outputFileName,
-                    );
-                    const doc = await vscode.workspace.openTextDocument(
-                        dumpPath,
-                    );
-                    await vscode.window.showTextDocument(doc);
-
-                    // 完了メッセージ
-                    vscode.window.showInformationMessage(
-                        `Output completed: ${userDefaults.outputFileName}`,
-                    );
-                },
-            );
-        },
-    );
-    context.subscriptions.push(dumpDisposable);
-
     // ワークスペースルートを取得（開いていない場合 undefined）
-    /* ツリービュー生成 ------------- */
+    /* ツリービュー生成 */
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
 
     // ファイルツリー表示用プロバイダーを常に登録
@@ -106,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    /* チェック済みアイテムをクリップボードへ ---------- */
+    /* チェック済みアイテムをクリップボードへ */
     const copyDisposable = vscode.commands.registerCommand(
         "dump-sourcecode.copySelected",
         async () => {
@@ -135,7 +80,11 @@ export function activate(context: vscode.ExtensionContext) {
                 const bytes = await vscode.workspace.fs.readFile(
                     vscode.Uri.file(p),
                 );
-                dumpText += `\n########## ${p} ##########\n`;
+                // プロジェクトルート(workspaceRoot)からの相対パスを取得
+                const workspaceRoot =
+                    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
+                const rel = path.relative(workspaceRoot, p).replace(/\\/g, "/");
+                dumpText += `\n########## ${rel} ##########\n`;
                 dumpText += new TextDecoder().decode(bytes) + "\n";
             }
             await vscode.env.clipboard.writeText(dumpText);
@@ -153,12 +102,29 @@ export function activate(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(refreshDisposable);
 
-    /* ---------------- すべてのチェックを解除 ---------------- */
+    /* すべてのチェックを解除 */
     const clearDisposable = vscode.commands.registerCommand(
         "dump-sourcecode.clearSelection",
         () => treeProvider.clearAllChecked(),
     );
     context.subscriptions.push(clearDisposable);
+
+    // "Dump Sources" コマンド登録（ファイルへの出力）
+    const dumpToFileDisposable = vscode.commands.registerCommand(
+        "dump-sourcecode.dump_files_to_file",
+        async (uri: vscode.Uri) => {
+            handleDumpFiles(uri, "file");
+        },
+    );
+    context.subscriptions.push(dumpToFileDisposable);
+    // "Dump Sources" コマンド登録（クリップボードへのコピー）
+    const dumpToClipboardDisposable = vscode.commands.registerCommand(
+        "dump-sourcecode.dump_files_to_clipboard",
+        async (uri: vscode.Uri) => {
+            handleDumpFiles(uri, "clipboard");
+        },
+    );
+    context.subscriptions.push(dumpToClipboardDisposable);
 }
 
 /**

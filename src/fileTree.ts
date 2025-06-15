@@ -145,6 +145,13 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
 
     public getTreeItem(element: FileNode): vscode.TreeItem {
         element.syncCheckbox();
+        if (element.isDirectory) {
+            // チェック済みの子要素があれば展開状態に
+            element.collapsibleState =
+                this.hasCheckedDescendants(element.uri.fsPath)
+                    ? vscode.TreeItemCollapsibleState.Expanded
+                    : vscode.TreeItemCollapsibleState.Collapsed;
+        }
         return element;
     }
 
@@ -196,5 +203,18 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
                 acc.push(full);
             }
         }
+    }
+
+    /** 指定ノード配下にチェック済み要素があるか */
+    private hasCheckedDescendants(dirPath: string): boolean {
+        const prefix = dirPath.endsWith(path.sep)
+            ? dirPath
+            : dirPath + path.sep;
+        for (const p of this.checked) {
+            if (p === dirPath || p.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
