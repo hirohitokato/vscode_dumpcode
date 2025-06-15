@@ -9,7 +9,7 @@
         "url": "https://github.com/hirohitokato/vscode_dumpcode"
     },
     "engines": {
-        "vscode": "^1.54.0"
+        "vscode": "^1.75.0"
     },
     "categories": [
         "Programming Languages",
@@ -25,7 +25,23 @@
     "activationEvents": [],
     "main": "./dist/extension.js",
     "contributes": {
+        "views": {
+            "explorer": [
+                {
+                    "id": "myFileExplorer",
+                    "name": "ファイル・フォルダ選択ビュー"
+                }
+            ]
+        },
         "commands": [
+            {
+                "command": "dump-sourcecode.copySelected",
+                "title": "選択したファイルをコピー"
+            },
+            {
+                "command": "dump-sourcecode.refreshTree",
+                "title": "ツリーを更新"
+            },
             {
                 "command": "dump-sourcecode.dump_files",
                 "title": "Dump files to a single file"

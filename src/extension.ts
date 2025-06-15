@@ -1,88 +1,120 @@
 import * as vscode from "vscode";
+import { FileTreeProvider } from "./fileTree";
 import { dumpFilesContent, getFiles } from "./fileProcessor";
 import { UserDefaults } from "./userDefaults";
 import path from "path";
 
 /**
- * このファイルは、Visual Studio Codeのエクステンションエントリーポイントとして機能する。
- * - activate(): エクステンションが有効化された際に呼び出される初期化処理を行う。
- * - deactivate(): エクステンションが無効化された際の後処理を行う（今回は特に処理なし）。
- *
- * 本エクステンションでは、エクスプローラー上でフォルダーを右クリックしたときに「Dump Sources」という
- * コンテキストメニューを追加する。選択されたフォルダー以下のファイル一覧（テキストファイルのみ）を取得し、
- * 一覧としてユーザーに表示する。`.gitignore`で無視されるファイルや、`.git`ディレクトリ、バイナリファイルなどは除外する。
+ * VS Code エクステンションのエントリーポイントモジュール。
+ * - activate(): エクステンション有効化時に実行される初期化処理
+ * - deactivate(): エクステンション無効化時に実行されるクリーンアップ処理
  */
 
 /**
- * エクステンションが有効化された際に呼び出される関数。
- * コマンド"dump-sourcecode.dump_files"を登録し、フォルダー右クリック時のコンテキストメニューから
- * ファイル一覧取得処理を実行できるようにする。
+ * エクステンション起動時に呼び出される関数
+ * 各種コマンドの登録とツリービューの初期化を行う
+ *
+ * @param context エクステンションの実行コンテキスト
  */
 export function activate(context: vscode.ExtensionContext) {
-    const disposable = vscode.commands.registerCommand(
-        "dump-sourcecode.dump_files",
-        async (uri: vscode.Uri) => {
-            // VS Codeが開いているフォルダー内で選択されたフォルダーの絶対パス
-            const folderPath = uri.fsPath;
-            let files: string[] = [];
+  // "Dump Sources" コマンド登録
+  const dumpDisposable = vscode.commands.registerCommand(
+    "dump-sourcecode.dump_files",
+    async (uri: vscode.Uri) => {
+      const folderPath = uri.fsPath;
+      const userDefaults = new UserDefaults();
+      let files: string[] = [];
 
-            const userDefaults = new UserDefaults();
-
-            // 処理全体を２つのプログレスインジケーター内で実行
-            // 1.ファイル収集
-            await vscode.window.withProgress(
-                {
-                    location: vscode.ProgressLocation.Window,
-                    title: `(1/2) Retrieving files in ${folderPath}...`,
-                },
-                async () => {
-                    // ファイル一覧取得
-                    files = await getFiles(
-                        folderPath,
-                        userDefaults.ignorePatterns
-                    );
-                }
-            );
-            // 2.ダンプ処理
-            await vscode.window.withProgress(
-                {
-                    location: vscode.ProgressLocation.Window,
-                    title: `(2/2) Generating "${userDefaults.outputFileName}"...`,
-                },
-                async () => {
-                    // ファイル内容ダンプ
-                    await dumpFilesContent(
-                        folderPath,
-                        userDefaults.outputFileName,
-                        files
-                    );
-
-                    // ダンプ結果ファイルをエディタで開く
-                    const dumpPath = path.join(
-                        folderPath,
-                        userDefaults.outputFileName
-                    );
-                    const doc = await vscode.workspace.openTextDocument(
-                        dumpPath
-                    );
-                    await vscode.window.showTextDocument(doc);
-
-                    // 完了メッセージ表示（設定で指定されたファイル名を反映）
-                    vscode.window.showInformationMessage(
-                        `Output completed: ${userDefaults.outputFileName}`
-                    );
-                }
-            );
+      // 1) ファイル一覧の取得
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Window,
+          title: `(1/2) Retrieving files in ${folderPath}...`,
+        },
+        async () => {
+          files = await getFiles(folderPath, userDefaults.ignorePatterns);
         }
-    );
+      );
 
-    context.subscriptions.push(disposable);
+      // 2) ファイル内容ダンプおよび表示
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Window,
+          title: `(2/2) Generating "${userDefaults.outputFileName}"...`,
+        },
+        async () => {
+          await dumpFilesContent(
+            folderPath,
+            userDefaults.outputFileName,
+            files
+          );
+
+          // ダンプ結果をエディタで開く
+          const dumpPath = path.join(folderPath, userDefaults.outputFileName);
+          const doc = await vscode.workspace.openTextDocument(dumpPath);
+          await vscode.window.showTextDocument(doc);
+
+          // 完了メッセージ
+          vscode.window.showInformationMessage(
+            `Output completed: ${userDefaults.outputFileName}`
+          );
+        }
+      );
+    }
+  );
+  context.subscriptions.push(dumpDisposable);
+
+  // ワークスペースルートを取得（開いていない場合 undefined）
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+
+  // ファイルツリー表示用プロバイダーを常に登録
+  const treeProvider = new FileTreeProvider(workspaceRoot);
+  const treeView = vscode.window.createTreeView("myFileExplorer", {
+    treeDataProvider: treeProvider,
+    canSelectMany: true,
+  });
+  context.subscriptions.push(treeView);
+
+  // 選択アイテムをクリップボードにコピーするコマンド
+  const copyDisposable = vscode.commands.registerCommand(
+    "dump-sourcecode.copySelected",
+    async () => {
+      const selection = treeView.selection;
+      if (selection.length === 0) {
+        vscode.window.showInformationMessage("何も選択されていません。");
+        return;
+      }
+
+      let dumpText = "";
+      for (const node of selection) {
+        if (node.isDirectory) {
+          dumpText += `--- ${node.uri.fsPath} (folder) ---\n\n`;
+        } else {
+          const bytes = await vscode.workspace.fs.readFile(node.uri);
+          dumpText += `--- ${node.uri.fsPath} ---\n`;
+          dumpText += new TextDecoder().decode(bytes) + "\n\n";
+        }
+      }
+      await vscode.env.clipboard.writeText(dumpText);
+      vscode.window.showInformationMessage(
+        "選択したファイルの内容をクリップボードにコピーしました。"
+      );
+    }
+  );
+  context.subscriptions.push(copyDisposable);
+
+  // ツリーをリフレッシュするコマンド
+  const refreshDisposable = vscode.commands.registerCommand(
+    "dump-sourcecode.refreshTree",
+    () => treeProvider.refresh()
+  );
+  context.subscriptions.push(refreshDisposable);
 }
 
 /**
- * エクステンションが無効化された際に呼び出される関数。
- * 今回は特に後処理は必要ないため、空実装としている。
+ * エクステンション無効化時に呼び出される関数
+ * 必要があればここでリソース解放や後処理を記述可能
  */
 export function deactivate() {
-    // No operation
+  // No operation
 }
