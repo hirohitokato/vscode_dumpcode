@@ -1,104 +1,96 @@
 # Dump Sources Extension
 
-> The extension gathers all source files in the specified folder and concatenates their contents into a single text file or copies them to the clipboard.
+> A VS Code extension to collect and export source files from a folder, either as a single text file or directly to the clipboard.
 
-![Extension Icon](assets/screenshot1.png)
+![screenshot](./assets/screenshot.png)
 
-## Features
+## Key Features
 
-* **Tree View** in the Explorer to browse and select text-based source files
-* **Copy Selected**: Copy the contents of selected files to the clipboard
-* **Dump to File**: Concatenate selected files into one output file
-* **Dump to Clipboard**: Copy concatenated content directly to the clipboard
+* **Two Modes of Operation**:
+
+  1. **Explorer Context Menu**: Quickly dump all source files in any folder via right-click, output to a file or clipboard.
+  2. **Dump Sourcecode Tree View**: Fine-grained file selection with a dedicated tree view (clipboard only).
+
+* **Commands**:
+
+  * Dump files to a single file.
+  * Dump files to the clipboard.
+  * Refresh or clear selections in the tree view.
 
 ## Usage
 
-1. In the Explorer sidebar, open the **Dump Sourcecode** view.
-2. Click the **Refresh** icon to load files.
-3. Expand folders and click on files to select them.
-4. Right-click on the view or in the Explorer context menu and choose one of the following commands:
-   * **Dump files to single file**: Creates a file containing all selected contents.
-   * **Dump files to Clipboard**: Copies all selected contents to the clipboard.
-5. The output file will be named according to your configuration (default: `aggregated_sources.txt`).
+### 1. Explorer Context Menu
 
-### Output example
+1. In the **Explorer**, right-click on a folder.
+2. Choose **Dump files to single file** or **Dump files to Clipboard**.
+3. (File mode only) The output file is created at the workspace root with the name set by `dumpSource.outputFileName`.
 
-```ts
-########## src/fileTree.ts ##########
-import * as vscode from "vscode";
-import * as path from "path";
-...
+![Explorer Context Menu](./assets/screenshot2.png)
 
-########## src/userDefaults.ts ##########
-import * as vscode from "vscode";
+### 2. Dump Sourcecode Tree View
 
-export class UserDefaults {
-...
+1. Open the **Dump Sourcecode** view from the Explorer sidebar.
+2. Click the **Refresh** icon to scan for text-based source files.
+3. Expand folders and click items to select.
+4. Use the **Copy Selected** command (via view title or context menu) to copy contents to the clipboard.
 
-########## src/services/dumpChildren.ts ##########
-import * as vscode from "vscode";
-...
-```
+> **Note**: Tree view mode supports **clipboard output only**.
 
-## Commands
+![Tree View Selection](./assets/screenshot1.png)
 
-| Command | Title | Description |
-| --- | --- | --- |
-| `dump-sourcecode.refreshTree` | Refresh Tree | Reloads the target folder structure |
-| `dump-sourcecode.copySelected` | Dump Selections to Clipboard | Copies selected file contents to clipboard |
-| `dump-sourcecode.clearSelection` | Clear Selection | Deselects all files |
-| `dump-sourcecode.dump_files_to_file` | Dump files to single file | Concatenates selected files into one output file |
-| `dump-sourcecode.dump_files_to_clipboard` | Dump files to Clipboard | Copies concatenated contents to clipboard |
+## Commands Reference
+
+| Command                                   | Title                     | Context                                    |
+| ----------------------------------------- | ------------------------- | ------------------------------------------ |
+| `dump-sourcecode.dump_files_to_file`      | Dump files to single file | Explorer context (folder only)             |
+| `dump-sourcecode.dump_files_to_clipboard` | Dump files to Clipboard   | Explorer context (folder only) + Tree view |
+| `dump-sourcecode.refreshTree`             | Refresh Tree              | Tree view                                  |
+| `dump-sourcecode.clearSelection`          | Clear Selection           | Tree view                                  |
+| `dump-sourcecode.copySelected`            | Copy Selected             | Tree view                                  |
 
 ## Configuration
 
-The extension contributes the following settings under **Dump Sourcecode Settings**:
+Under **Preferences › Settings › Dump Sourcecode**, configure:
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `dumpSource.outputFileName` | `aggregated_sources.txt` | Name of the output file when using **Dump to File** command. |
-| `dumpSource.userIgnorePatterns` | `["*.md",".vscode","package-lock.json"]` | Glob patterns to ignore files and directories (similar to `.gitignore`). Applies when dumping. |
-| `dumpSource.defaultDumpTarget` | `clipboard` | Default target for the **Dump to...** commands (`file` or `clipboard`). |
+| Setting                         | Default                                    | Applies When                           |
+| ------------------------------- | ------------------------------------------ | -------------------------------------- |
+| `dumpSource.outputFileName`     | `aggregated_sources.txt`                   | Explorer context **file** mode         |
+| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes (filters files to include)  |
+| `dumpSource.defaultDumpTarget`  | `clipboard`                                | Explorer context (sets default action) |
 
-To modify these settings, open **Preferences › Settings**, search for **Dump Sourcecode**, and adjust as needed.
-
-## Extension Settings Sample
+### Sample Configuration
 
 ```json
 {
-    "dumpSource.outputFileName": "all_sources.txt",
-    "dumpSource.userIgnorePatterns": ["*.test.ts", "node_modules"],
-    "dumpSource.defaultDumpTarget": "file"
+  "dumpSource.outputFileName": "all_sources.txt",
+  "dumpSource.userIgnorePatterns": ["*.test.ts", "node_modules"],
+  "dumpSource.defaultDumpTarget": "file"
 }
 ```
 
-## How to Contribute
+## Getting Started
 
-1. Clone or download this repository:
+1. Clone the repository:
 
    ```bash
    git clone https://github.com/hirohitokato/vscode_dumpcode.git
    ```
-2. Open the folder in VS Code.
-3. Run the **Extension** debug session (press `F5`).
-4. Your extension is now running in a new Extension Development Host window.
+2. Open in VS Code.
+3. Press `F5` to launch the Extension Development Host.
+4. Use the commands as described above.
 
 ## Release Notes
 
 ### 2.0.2
 
-* Updated README
+* Refined README with usage scenarios and settings clarity.
 
 ### 2.0.1
 
-* Fixed some issues with file selection and tree view
+* Introduced tree view and flexible output modes.
 
 ### 2.0.0
 
-* Introduced **Tree View** for file selection
-* Added **Copy Selected** and **Clear Selection** commands
-* Support for dumping either to file or clipboard
-
----
+* Initial release: basic file dumping functionality.
 
 *Published by [hkato193](https://github.com/hirohitokato), version 2.0.1*
