@@ -1,77 +1,104 @@
-# Dump Sources
+# Dump Sources Extension
 
-"Dump Sources" is a Visual Studio Code extension designed to help you quickly aggregate text-based source files from a specific directory into a single output file. This is particularly useful when preparing code for large language models (LLMs) or when you need a consolidated view of certain files for review, documentation, or analysis.
+> The extension gathers all source files in the specified folder and concatenates their contents into a single text file or copies them to the clipboard.
 
-![screenshot](./assets/screenshot.jpg)
+![Extension Icon](assets/screenshot1.png)
 
-↓
+## Features
 
-```txt
-########## .prettierrc ##########
-{
-  "tabWidth": 4
-}
+* **Tree View** in the Explorer to browse and select text-based source files
+* **Copy Selected**: Copy the contents of selected files to the clipboard
+* **Dump to File**: Concatenate selected files into one output file
+* **Dump to Clipboard**: Copy concatenated content directly to the clipboard
 
-########## package.json ##########
-{
-    "name": "dump-sourcecode",
-    ...
+## Usage
 
-########## src\extension.ts ##########
+1. In the Explorer sidebar, open the **Dump Sourcecode** view.
+2. Click the **Refresh** icon to load files.
+3. Expand folders and click on files to select them.
+4. Right-click on the view or in the Explorer context menu and choose one of the following commands:
+   * **Dump files to single file**: Creates a file containing all selected contents.
+   * **Dump files to Clipboard**: Copies all selected contents to the clipboard.
+5. The output file will be named according to your configuration (default: `aggregated_sources.txt`).
+
+### Output example
+
+```ts
+########## src/fileTree.ts ##########
 import * as vscode from "vscode";
+import * as path from "path";
 ...
 
-########## src\fileProcessor.ts ##########
-import * as path from "path";
+########## src/userDefaults.ts ##########
+import * as vscode from "vscode";
+
+export class UserDefaults {
+...
+
+########## src/services/dumpChildren.ts ##########
+import * as vscode from "vscode";
 ...
 ```
 
-## Key Features
+## Commands
 
--   **Bulk Code Input for AI**: Easily combine source code files from a chosen directory into one output file, perfect for providing a single large input to AI models.
--   **Directory-Scoped Collection**: Simply right-click on a target folder in the Explorer to gather only the files under that directory.
--   **.gitignore Support**: Automatically skip files and directories that match `.gitignore` rules, ensuring that only relevant files are included.
--   **Flexible Configuration**:
-    -   Customize the output filename
-    -   Specify a list of file/directory patterns to exclude
+| Command | Title | Description |
+| --- | --- | --- |
+| `dump-sourcecode.refreshTree` | Refresh Tree | Reloads the target folder structure |
+| `dump-sourcecode.copySelected` | Dump Selections to Clipboard | Copies selected file contents to clipboard |
+| `dump-sourcecode.clearSelection` | Clear Selection | Deselects all files |
+| `dump-sourcecode.dump_files_to_file` | Dump files to single file | Concatenates selected files into one output file |
+| `dump-sourcecode.dump_files_to_clipboard` | Dump files to Clipboard | Copies concatenated contents to clipboard |
 
-## How to Use
+## Configuration
 
-1. Open your target project in VS Code.
-2. In the Explorer, right-click the folder you want to dump sources from.
-3. Select **"Dump Sources"** from the context menu.
-4. The extension will find all files matching the configured extensions (excluding those ignored by `.gitignore`).
-5. While processing, a progress indicator will animate at the bottom of the VS Code window.
-6. Once complete, the generated file opens automatically in the editor, allowing you to review the combined content immediately.
+The extension contributes the following settings under **Dump Sourcecode Settings**:
 
-## Extension Settings
+| Setting | Default | Description |
+| --- | --- | --- |
+| `dumpSource.outputFileName` | `aggregated_sources.txt` | Name of the output file when using **Dump to File** command. |
+| `dumpSource.userIgnorePatterns` | `["*.md",".vscode","package-lock.json"]` | Glob patterns to ignore files and directories (similar to `.gitignore`). Applies when dumping. |
+| `dumpSource.defaultDumpTarget` | `clipboard` | Default target for the **Dump to...** commands (`file` or `clipboard`). |
 
-#### `dumpSource.outputFileName`
+To modify these settings, open **Preferences › Settings**, search for **Dump Sourcecode**, and adjust as needed.
 
--   **Type**: string
--   **Default**: "aggregated_sources.txt"
--   **Description**: Specifies the name of the file where aggregated content will be stored.
--   **Example**: "merged_sources.txt"
+## Extension Settings Sample
 
-#### `dumpSource.userIgnorePatterns`
+```json
+{
+    "dumpSource.outputFileName": "all_sources.txt",
+    "dumpSource.userIgnorePatterns": ["*.test.ts", "node_modules"],
+    "dumpSource.defaultDumpTarget": "file"
+}
+```
 
--   **Type**: array of string
--   **Default**: ["*.md", ".vscode", "package-lock.json"]
--   **Description**: A list of file and directory patterns to ignore during processing. Patterns use .gitignore-like syntax, supporting wildcards (`\*`, `\*\*`).
--   **Examples**:
-    -   `["*.md"]`: Ignore all Markdown files.
-    -   `["dir/**/*.txt"]`: Ignore all .txt files within the dir directory and its subdirectories.
+## How to Contribute
 
-## Use Cases
+1. Clone or download this repository:
 
--   Provide large sections of code to AI models for analysis or suggestions.
--   Extract and consolidate specific parts of a project for focused reviews.
--   Create a single reference document from multiple source files for documentation or archiving.
+   ```bash
+   git clone https://github.com/hirohitokato/vscode_dumpcode.git
+   ```
+2. Open the folder in VS Code.
+3. Run the **Extension** debug session (press `F5`).
+4. Your extension is now running in a new Extension Development Host window.
 
-With the Dump Sources Extension, you can streamline your code aggregation process, making it easier to work with AI tools or gain insights from a defined subset of files. Try it out and speed up your code management workflow!
+## Release Notes
 
-## LICENSE
+### 2.0.2
 
-See [LICENSE.md](./LICENSE.md) file.
+* Updated README
 
-**Enjoy!**
+### 2.0.1
+
+* Fixed some issues with file selection and tree view
+
+### 2.0.0
+
+* Introduced **Tree View** for file selection
+* Added **Copy Selected** and **Clear Selection** commands
+* Support for dumping either to file or clipboard
+
+---
+
+*Published by [hkato193](https://github.com/hirohitokato), version 2.0.1*
