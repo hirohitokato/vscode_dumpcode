@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { FileTreeProvider } from "./fileTree";
+import { FileNode, FileTreeProvider } from "./fileTree";
 import { dumpFilesContent, getFiles, readFilesContent } from "./fileProcessor";
 import { UserDefaults } from "./userDefaults";
 import path from "path";
