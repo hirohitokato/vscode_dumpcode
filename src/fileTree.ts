@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { isBinaryFile } from "isbinaryfile";
+import ignore, { Ignore } from "ignore";
 
 /* ---------- FileNode ---------- */
 export class FileNode extends vscode.TreeItem {
@@ -8,13 +9,13 @@ export class FileNode extends vscode.TreeItem {
         public readonly uri: vscode.Uri,
         public readonly isDirectory: boolean,
         private readonly provider: FileTreeProvider,
-        private readonly isBinary: boolean,
+        private readonly isBinary: boolean
     ) {
         super(
             path.basename(uri.fsPath),
             isDirectory
                 ? vscode.TreeItemCollapsibleState.Collapsed
-                : vscode.TreeItemCollapsibleState.None,
+                : vscode.TreeItemCollapsibleState.None
         );
 
         this.resourceUri = uri;
@@ -23,7 +24,6 @@ export class FileNode extends vscode.TreeItem {
         /* バイナリファイルはチェック無し & アイコン変更 */
         if (this.isBinary) {
             this.iconPath = new vscode.ThemeIcon("file-binary");
-            // checkboxState を設定しない ⇒ チェックボックス非表示
         } else {
             this.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
         }
@@ -45,92 +45,131 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
     private readonly nodeCache = new Map<string, FileNode>();
     private readonly stateKey: string; // workspaceState 用キー
 
+    private ig: Ignore;
+    private workspaceRootPath: string;
+
     private _onDidChangeTreeData = new vscode.EventEmitter<FileNode | void>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     constructor(
         private readonly workspaceRoot: vscode.Uri | undefined,
-        private readonly context: vscode.ExtensionContext,
+        private readonly context: vscode.ExtensionContext
     ) {
         if (workspaceRoot) {
+            this.workspaceRootPath = workspaceRoot.fsPath;
             this.stateKey = `checkedPaths:${workspaceRoot.fsPath}`;
+
             // 保存済みチェック状態を復元
             const saved = context.workspaceState.get<string[]>(
                 this.stateKey,
-                [],
+                []
             );
             saved.forEach((p) => this.checked.add(p));
+
+            // ignoreライブラリ初期化 & .gitignore 読み込み
+            this.ig = ignore();
+            this.loadIgnorePatterns().catch((err) =>
+                console.error("Ignore load error:", err)
+            );
         } else {
+            this.workspaceRootPath = "";
             this.stateKey = "checkedPaths:<no-workspace>";
+            this.ig = ignore();
         }
+    }
+
+    /** .gitignore とユーザー設定パターンを読み込む */
+    private async loadIgnorePatterns(): Promise<void> {
+        // 1) .git ディレクトリ丸ごと除外
+        this.ig.add(".git/");
+
+        // 2) ワークスペース直下の .gitignore があれば行ごとに追加
+        if (this.workspaceRootPath) {
+            const gitignoreUri = vscode.Uri.joinPath(
+                vscode.Uri.file(this.workspaceRootPath),
+                ".gitignore"
+            );
+            try {
+                const data = await vscode.workspace.fs.readFile(gitignoreUri);
+                const content = Buffer.from(data).toString("utf8");
+                this.ig.add(
+                    content
+                        .split(/\r?\n/)
+                        .map((line) => line.trim())
+                        .filter((line) => line && !line.startsWith("#"))
+                );
+            } catch {
+                // .gitignore がない場合は無視
+            }
+        }
+
+        // 3) ユーザー設定 dumpSource.userIgnorePatterns の取り込み
+        const cfg = vscode.workspace.getConfiguration("dumpSource");
+        const patterns = cfg.get<string[]>("userIgnorePatterns") || [];
+        this.ig.add(patterns);
     }
 
     /** チェック状態を永続化 */
     private persist(): void {
         this.context.workspaceState.update(
             this.stateKey,
-            Array.from(this.checked),
+            Array.from(this.checked)
         );
     }
-    /** 指定パスがチェック済みかどうか */
     public isChecked(p: string) {
         return this.checked.has(p);
     }
-    /** チェックを付ける */
     public markChecked(p: string) {
-        if (this.checked.has(p)) return;
+        if (this.checked.has(p)) {
+            return;
+        }
         this.checked.add(p);
         this.persist();
         this.refresh();
     }
-    /** 指定パスのチェックを外す */
     public unmarkChecked(p: string) {
-        if (!this.checked.has(p)) return;
+        if (!this.checked.has(p)) {
+            return;
+        }
         this.checked.delete(p);
         this.persist();
         this.refresh();
     }
 
-    /* ディレクトリ再帰チェック */
     public async markRecursively(dirPath: string): Promise<void> {
         const paths: string[] = [];
         await this.collectAllPaths(dirPath, paths);
-        for (const p of paths) {
-            this.checked.add(p);
-        }
+        paths.forEach((p) => this.checked.add(p));
         this.persist();
         this.refresh();
     }
 
-    /** パス集合をそのまま返すユーティリティ */
     public getCheckedPaths(): string[] {
         return Array.from(this.checked);
     }
 
-    /** 指定ディレクトリ以下のすべてのチェックを外す */
     public unmarkRecursively(dirPath: string): void {
         const prefix = dirPath.endsWith(path.sep)
             ? dirPath
             : dirPath + path.sep;
-
-        for (const p of Array.from(this.checked)) {
+        Array.from(this.checked).forEach((p) => {
             if (p === dirPath || p.startsWith(prefix)) {
                 this.checked.delete(p);
             }
-        }
+        });
         this.persist();
         this.refresh();
     }
 
-    /** すべてのチェックを外す */
     public clearAllChecked(): void {
-        if (this.checked.size === 0) return;
+        if (this.checked.size === 0) {
+            return;
+        }
         this.checked.clear();
         this.persist();
         this.refresh();
     }
 
-    /** コピー用にチェック済みノードを返却 */
     public getCheckedNodes(): FileNode[] {
         return Array.from(this.checked)
             .map((p) => this.nodeCache.get(p))
@@ -144,19 +183,21 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
     public getTreeItem(element: FileNode): vscode.TreeItem {
         element.syncCheckbox();
         if (element.isDirectory) {
-            // チェック済みの子要素があれば展開状態に
-            element.collapsibleState =
-                this.hasCheckedDescendants(element.uri.fsPath)
-                    ? vscode.TreeItemCollapsibleState.Expanded
-                    : vscode.TreeItemCollapsibleState.Collapsed;
+            element.collapsibleState = this.hasCheckedDescendants(
+                element.uri.fsPath
+            )
+                ? vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.Collapsed;
         }
         return element;
     }
 
     public async getChildren(element?: FileNode): Promise<FileNode[]> {
-        if (!this.workspaceRoot) return [];
+        if (!this.workspaceRoot) {
+            return [];
+        }
 
-        /* 最上位：ワークスペースルートを 1 ノードだけ返す */
+        // ルートノードだけ返す
         if (!element) {
             let rootNode = this.nodeCache.get(this.workspaceRoot.fsPath);
             if (!rootNode) {
@@ -166,15 +207,27 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             return [rootNode];
         }
 
-        /* 子要素列挙 */
         const entries = await vscode.workspace.fs.readDirectory(element.uri);
 
-        /* Promise でバイナリ判定を同時進行 */
+        // ignoreルールでフィルタリング
+        const filtered = entries.filter(([name, fileType]) => {
+            const fullPath = path.join(element.uri.fsPath, name);
+            let relPath = path.relative(this.workspaceRootPath, fullPath);
+            // パス区切りを posix スタイルに
+            relPath = relPath.split(path.sep).join("/");
+            // ディレクトリは末尾にスラッシュを付与
+            if (fileType === vscode.FileType.Directory) {
+                relPath = relPath.endsWith("/") ? relPath : relPath + "/";
+            }
+            return !this.ig.ignores(relPath);
+        });
+
         const nodes = await Promise.all(
-            entries.map(async ([name, fileType]) => {
+            filtered.map(async ([name, fileType]) => {
                 const uri = vscode.Uri.joinPath(element.uri, name);
                 const isDir = fileType === vscode.FileType.Directory;
-                const isBin = !isDir &&
+                const isBin =
+                    !isDir &&
                     (await isBinaryFile(uri.fsPath).catch(() => false));
 
                 let node = this.nodeCache.get(uri.fsPath);
@@ -183,48 +236,36 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
                     this.nodeCache.set(uri.fsPath, node);
                 }
                 return node;
-            }),
+            })
         );
 
         return nodes;
     }
 
-    /**
-     * ディレクトリもファイルも含めて再帰的にパスを収集
-     */
     private async collectAllPaths(
         current: string,
-        acc: string[],
+        acc: string[]
     ): Promise<void> {
-        // 自身も登録
         acc.push(current);
-
-        // 子要素を列挙
         const entries = await vscode.workspace.fs.readDirectory(
-            vscode.Uri.file(current),
+            vscode.Uri.file(current)
         );
         for (const [name, type] of entries) {
             const child = path.join(current, name);
             if (type === vscode.FileType.Directory) {
-                // サブディレクトリ → 再帰
                 await this.collectAllPaths(child, acc);
             } else if (type === vscode.FileType.File) {
-                // ファイル → そのまま登録
                 acc.push(child);
             }
         }
     }
 
-    /** 指定ノード配下にチェック済み要素があるか */
     private hasCheckedDescendants(dirPath: string): boolean {
         const prefix = dirPath.endsWith(path.sep)
             ? dirPath
             : dirPath + path.sep;
-        for (const p of this.checked) {
-            if (p === dirPath || p.startsWith(prefix)) {
-                return true;
-            }
-        }
-        return false;
+        return Array.from(this.checked).some(
+            (p) => p === dirPath || p.startsWith(prefix)
+        );
     }
 }
