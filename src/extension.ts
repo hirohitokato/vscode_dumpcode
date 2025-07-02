@@ -36,6 +36,28 @@ export function activate(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(treeView);
 
+    // 最後にクリックした時間と URI を保持
+    let _lastClickTime = 0;
+    let _lastClickUri = "";
+
+    // DUMP SOURCECODE ツリービューでダブルクリックした時にファイルを開く
+    const openFileOnDoubleClick = vscode.commands.registerCommand(
+        "dump-sourcecode.openFileOnDoubleClick",
+        (node: FileNode) => {
+            const now = Date.now();
+            // 前回と同じファイルが 500ms 以内にクリックされたらダブルクリックとみなす
+            if (
+                _lastClickUri === node.uri.fsPath &&
+                now - _lastClickTime < 500
+            ) {
+                vscode.window.showTextDocument(node.uri);
+            }
+            _lastClickTime = now;
+            _lastClickUri = node.uri.fsPath;
+        },
+    );
+    context.subscriptions.push(openFileOnDoubleClick);
+
     /* チェック状態の変化を捕捉して Provider に反映 */
     treeView.onDidChangeCheckboxState(async (e) => {
         for (const [node, state] of e.items) {
