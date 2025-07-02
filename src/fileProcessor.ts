@@ -264,17 +264,20 @@ async function createIgnore(dirPath: string): Promise<Ignore> {
         currentPath = path.dirname(currentPath); // 親ディレクトリへ移動
     }
 
-    currentPath = dirPath;
-    while (currentPath !== path.parse(currentPath).root) {
-        const gitignorePath = path.join(currentPath, ".vscodeignore");
+    // 以下のコードは .vscodeignore ファイルを読み込むためのものだが、
+    // 現在の要件では不要なためコメントアウトしている。
 
-        if (await exists(gitignorePath)) {
-            const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
-            ig.add(gitignoreContent);
-        }
+    // currentPath = dirPath;
+    // while (currentPath !== path.parse(currentPath).root) {
+    //     const gitignorePath = path.join(currentPath, ".vscodeignore");
 
-        currentPath = path.dirname(currentPath); // 親ディレクトリへ移動
-    }
+    //     if (await exists(gitignorePath)) {
+    //         const gitignoreContent = await fs.readFile(gitignorePath, "utf8");
+    //         ig.add(gitignoreContent);
+    //     }
+
+    //     currentPath = path.dirname(currentPath); // 親ディレクトリへ移動
+    // }
 
     return ig;
 }
