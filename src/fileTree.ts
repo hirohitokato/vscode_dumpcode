@@ -26,10 +26,10 @@ export class FileNode extends vscode.TreeItem {
             this.iconPath = new vscode.ThemeIcon("file-binary");
         } else {
             this.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
-            // ファイルをダブルクリックしたときに開くコマンドを設定
+            // ファイルをクリックしたときに開くコマンドを設定
             if (!isDirectory) {
                 this.command = {
-                    command: "dump-sourcecode.openFileOnDoubleClick",
+                    command: "dump-sourcecode.openFileOnClick",
                     title: "Open File",
                     arguments: [this],
                 };

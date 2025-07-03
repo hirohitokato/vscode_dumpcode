@@ -81,16 +81,24 @@ Under **Preferences › Settings › Dump Sourcecode**, configure:
 
 ## Release Notes
 
+### 2.0.6
+
+* Added the ability to open content when clicking on a file in the tree view.
+
+### 2.0.5
+
+* Discontinued ignoring files described in .vscodeignore
+
 ### 2.0.2
 
 * Refined README with usage scenarios and settings clarity.
 
 ### 2.0.1
 
-* Introduced tree view and flexible output modes.
+* Introduced tree view and flexible output modes. See settings for more details.
 
-### 2.0.0
+### 1.0.0
 
 * Initial release: basic file dumping functionality.
 
-*Published by [hkato193](https://github.com/hirohitokato), version 2.0.1*
+*Published by [hkato193](https://github.com/hirohitokato)*

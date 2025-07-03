@@ -40,23 +40,14 @@ export function activate(context: vscode.ExtensionContext) {
     let _lastClickTime = 0;
     let _lastClickUri = "";
 
-    // DUMP SOURCECODE ツリービューでダブルクリックした時にファイルを開く
-    const openFileOnDoubleClick = vscode.commands.registerCommand(
-        "dump-sourcecode.openFileOnDoubleClick",
+    // DUMP SOURCECODE ツリービューでクリックした時にファイルを開く
+    const openFileOnClick = vscode.commands.registerCommand(
+        "dump-sourcecode.openFileOnClick",
         (node: FileNode) => {
-            const now = Date.now();
-            // 前回と同じファイルが 500ms 以内にクリックされたらダブルクリックとみなす
-            if (
-                _lastClickUri === node.uri.fsPath &&
-                now - _lastClickTime < 500
-            ) {
-                vscode.window.showTextDocument(node.uri);
-            }
-            _lastClickTime = now;
-            _lastClickUri = node.uri.fsPath;
+            vscode.window.showTextDocument(node.uri);
         },
     );
-    context.subscriptions.push(openFileOnDoubleClick);
+    context.subscriptions.push(openFileOnClick);
 
     /* チェック状態の変化を捕捉して Provider に反映 */
     treeView.onDidChangeCheckboxState(async (e) => {
