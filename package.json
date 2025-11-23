@@ -128,6 +128,12 @@
                     "default": "clipboard",
                     "description": "The default output destination when you right-click in the Explorer view and select 'Dump files to...'. 'file' = output to a file, 'clipboard' = copy to clipboard."
                 }
+            ,
+            "dumpSource.revealFocus": {
+                "type": "boolean",
+                "default": true,
+                "description": "When true the Dump Sourcecode tree will take focus when revealing the active file (true = focus the tree). Set to false to keep focus in the editor while still highlighting the file in the view."
+            }
             }
         }
     },

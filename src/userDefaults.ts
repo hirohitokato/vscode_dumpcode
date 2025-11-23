@@ -20,4 +20,9 @@ export class UserDefaults {
         ]);
         return patterns;
     }
+
+    // reveal focus setting used by the tree view (true = tree takes focus on reveal)
+    get revealFocus(): boolean {
+        return this.config.get<boolean>("revealFocus", true);
+    }
 }

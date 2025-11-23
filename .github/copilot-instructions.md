@@ -35,7 +35,7 @@
 1. まず `src/extension.ts`、`src/fileTree.ts`、`src/fileProcessor.ts` を読み、実装の全体像を把握してください。
 2. 実装を更新する際は、フィルタやバイナリ判定に関する変更があればツリービュー (`fileTree.ts`) と `fileProcessor.ts` の両方で整合性を保ってください。
 3. `npm run compile`（または `npm run watch`）でビルドし、`npm test` でテストを実行して確認します。
-4. `dumpSource.*` 設定（`package.json` の contributes.configuration）を尊重してください。例: `dumpSource.outputFileName`, `dumpSource.userIgnorePatterns`, `dumpSource.defaultDumpTarget`。
+4. `dumpSource.*` 設定（`package.json` の contributes.configuration）を尊重してください。例: `dumpSource.outputFileName`, `dumpSource.userIgnorePatterns`, `dumpSource.defaultDumpTarget`, `dumpSource.revealFocus`（ツリーにフォーカスを取るか否かの切替）。
 
 ### 具体例（参考コードの流れ）
 - クリップボードへコピーするフロー: `src/extension.ts` → コマンド `dump-sourcecode.copySelected` → `getCheckedPaths()` → `workspace.fs.readFile(...)` → `vscode.env.clipboard.writeText`。

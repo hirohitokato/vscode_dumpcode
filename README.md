@@ -6,16 +6,16 @@
 
 ## Key Features
 
-* **Two Modes of Operation**:
+-   **Two Modes of Operation**:
 
-  1. **Explorer Context Menu**: Quickly dump all source files in any folder via right-click, output to a file or clipboard.
-  2. **Dump Sourcecode Tree View**: Fine-grained file selection with a dedicated tree view (clipboard only).
+    1. **Explorer Context Menu**: Quickly dump all source files in any folder via right-click, output to a file or clipboard.
+    2. **Dump Sourcecode Tree View**: Fine-grained file selection with a dedicated tree view (clipboard only).
 
-* **Commands**:
+-   **Commands**:
 
-  * Dump files to a single file.
-  * Dump files to the clipboard.
-  * Refresh or clear selections in the tree view.
+    -   Dump files to a single file.
+    -   Dump files to the clipboard.
+    -   Refresh or clear selections in the tree view.
 
 ## Usage
 
@@ -52,19 +52,21 @@
 
 Under **Preferences › Settings › Dump Sourcecode**, configure:
 
-| Setting                         | Default                                    | Applies When                           |
-| ------------------------------- | ------------------------------------------ | -------------------------------------- |
-| `dumpSource.outputFileName`     | `aggregated_sources.txt`                   | Explorer context **file** mode         |
-| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes (filters files to include)  |
-| `dumpSource.defaultDumpTarget`  | `clipboard`                                | Explorer context (sets default action) |
+| Setting                         | Default                                    | Applies When                                                                                                            |
+| ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `dumpSource.outputFileName`     | `aggregated_sources.txt`                   | Explorer context **file** mode                                                                                          |
+| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes (filters files to include)                                                                                   |
+| `dumpSource.defaultDumpTarget`  | `clipboard`                                | Explorer context (sets default action)                                                                                  |
+| `dumpSource.revealFocus`        | `true`                                     | Whether the Dump Sourcecode tree takes focus when revealing the active file; set to `false` to keep focus in the editor |
 
 ### Sample Configuration
 
 ```json
 {
-  "dumpSource.outputFileName": "all_sources.txt",
-  "dumpSource.userIgnorePatterns": ["*.test.ts", "node_modules"],
-  "dumpSource.defaultDumpTarget": "file"
+    "dumpSource.outputFileName": "all_sources.txt",
+    "dumpSource.userIgnorePatterns": ["*.test.ts", "node_modules"],
+    "dumpSource.defaultDumpTarget": "file",
+    "dumpSource.revealFocus": true
 }
 ```
 
@@ -72,9 +74,10 @@ Under **Preferences › Settings › Dump Sourcecode**, configure:
 
 1. Clone the repository:
 
-   ```bash
-   git clone https://github.com/hirohitokato/vscode_dumpcode.git
-   ```
+    ```bash
+    git clone https://github.com/hirohitokato/vscode_dumpcode.git
+    ```
+
 2. Open in VS Code.
 3. Press `F5` to launch the Extension Development Host.
 4. Use the commands as described above.
@@ -83,22 +86,22 @@ Under **Preferences › Settings › Dump Sourcecode**, configure:
 
 ### 2.0.6
 
-* Added the ability to open content when clicking on a file in the tree view.
+-   Added the ability to open content when clicking on a file in the tree view.
 
 ### 2.0.5
 
-* Discontinued ignoring files described in .vscodeignore
+-   Discontinued ignoring files described in .vscodeignore
 
 ### 2.0.2
 
-* Refined README with usage scenarios and settings clarity.
+-   Refined README with usage scenarios and settings clarity.
 
 ### 2.0.1
 
-* Introduced tree view and flexible output modes. See settings for more details.
+-   Introduced tree view and flexible output modes. See settings for more details.
 
 ### 1.0.0
 
-* Initial release: basic file dumping functionality.
+-   Initial release: basic file dumping functionality.
 
-*Published by [hkato193](https://github.com/hirohitokato)*
+_Published by [hkato193](https://github.com/hirohitokato)_

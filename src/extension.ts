@@ -57,6 +57,8 @@ export function activate(context: vscode.ExtensionContext) {
             // active editor is from another root (multi-root workspace) the
             // provider can't reveal it.
             const node = await treeProvider.getNodeForPath(uri.fsPath);
+            const cfg = new UserDefaults();
+            const takeFocus = cfg.revealFocus; // true => focus the tree when revealing
             if (node) {
                 // Make sure explorer (which contains our view) is visible so reveal actually unfolds/scrolls.
                 // Opening the Explorer sidebar is a best-effort action and will not throw on most platforms.
@@ -66,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
                     // ignore
                 }
 
-                await treeView.reveal(node, { select: true, focus: true, expand: 2 });
+                await treeView.reveal(node, { select: true, focus: takeFocus, expand: 2 });
                 return;
             }
 
@@ -84,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
                 await new Promise((r) => setTimeout(r, 120));
                 const node2 = await treeProvider.getNodeForPath(uri.fsPath);
                 if (node2) {
-                    await treeView.reveal(node2, { select: true, focus: true, expand: 2 });
+                    await treeView.reveal(node2, { select: true, focus: takeFocus, expand: 2 });
                 }
             } catch (err) {
                 // best-effort; ignore reveal failures
