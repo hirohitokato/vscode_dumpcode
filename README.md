@@ -1,6 +1,6 @@
 # Dump Sources Extension
 
-> A VS Code extension to collect and export source files from a folder, either as a single text file or directly to the clipboard.
+> A VS Code extension to collect and export source files from a folder — either as a single text file or copied to the clipboard.
 
 ![screenshot](./assets/screenshot.png)
 
@@ -9,10 +9,9 @@
 -   **Two Modes of Operation**:
 
     1. **Explorer Context Menu**: Quickly dump all source files in any folder via right-click, output to a file or clipboard.
-    2. **Dump Sourcecode Tree View**: Fine-grained file selection with a dedicated tree view (clipboard only).
+    2. **Dump Sourcecode Tree View**: Fine-grained file selection with a dedicated tree view. Files can be opened by clicking, and selected items can be copied to the clipboard.
 
 -   **Commands**:
-
     -   Dump files to a single file.
     -   Dump files to the clipboard.
     -   Refresh or clear selections in the tree view.
@@ -31,10 +30,11 @@
 
 1. Open the **Dump Sourcecode** view from the Explorer sidebar.
 2. Click the **Refresh** icon to scan for text-based source files.
-3. Expand folders and click items to select.
-4. Use the **Copy Selected** command (via view title or context menu) to copy contents to the clipboard.
+3. Expand folders and click the checkbox next to files (or folders) to select them.
+4. Click a file in the tree to open it in the editor.
+5. Use the **Copy Selected** command (via the view title or item context menu) to copy the contents of all selected files to the clipboard.
 
-> **Note**: Tree view mode supports **clipboard output only**.
+> **Note**: In tree view you can open files by clicking them and copy selected files to the clipboard using the `Copy Selected` command.
 
 ![Tree View Selection](./assets/screenshot1.png)
 
@@ -44,6 +44,7 @@
 | ----------------------------------------- | ------------------------- | ------------------------------------------ |
 | `dump-sourcecode.dump_files_to_file`      | Dump files to single file | Explorer context (folder only)             |
 | `dump-sourcecode.dump_files_to_clipboard` | Dump files to Clipboard   | Explorer context (folder only) + Tree view |
+| `dump-sourcecode.openFileOnClick`         | Open file on click        | Tree view (opens the clicked file)         |
 | `dump-sourcecode.refreshTree`             | Refresh Tree              | Tree view                                  |
 | `dump-sourcecode.clearSelection`          | Clear Selection           | Tree view                                  |
 | `dump-sourcecode.copySelected`            | Copy Selected             | Tree view                                  |
@@ -52,12 +53,12 @@
 
 Under **Preferences › Settings › Dump Sourcecode**, configure:
 
-| Setting                         | Default                                    | Applies When                                                                                                            |
-| ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `dumpSource.outputFileName`     | `aggregated_sources.txt`                   | Explorer context **file** mode                                                                                          |
-| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes (filters files to include)                                                                                   |
-| `dumpSource.defaultDumpTarget`  | `clipboard`                                | Explorer context (sets default action)                                                                                  |
-| `dumpSource.revealFocus`        | `true`                                     | Whether the Dump Sourcecode tree takes focus when revealing the active file; set to `false` to keep focus in the editor |
+| Setting                         | Default                                    | Applies When                                                                                                              |
+| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `dumpSource.outputFileName`     | `aggregated_sources.txt`                   | Explorer context **file** mode                                                                                            |
+| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes (filters files to include). Patterns are applied on top of .gitignore rules and use .gitignore-style matching. |
+| `dumpSource.defaultDumpTarget`  | `clipboard`                                | Explorer context (sets default action)                                                                                    |
+| `dumpSource.revealFocus`        | `true`                                     | Whether the Dump Sourcecode tree takes focus when revealing the active file; set to `false` to keep focus in the editor   |
 
 ### Sample Configuration
 
@@ -83,6 +84,14 @@ Under **Preferences › Settings › Dump Sourcecode**, configure:
 4. Use the commands as described above.
 
 ## Release Notes
+
+### 2.1.0
+
+-   Added a feature to synchronize the file content in the tree view with the editor.
+-   Improved package information.
+-   Updated dependencies.
+-   Minor bug fixes and performance improvements.
+-   Refactored codebase for better maintainability.
 
 ### 2.0.6
 

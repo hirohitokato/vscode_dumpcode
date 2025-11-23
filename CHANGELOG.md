@@ -1,5 +1,13 @@
 # Change Log
 
+## 2.1.0 - 2025/11/24
+
+- Added a feature to synchronize the file content in the tree view with the editor.
+- Improved package information.
+- Updated dependencies.
+- Minor bug fixes and performance improvements.
+- Refactored codebase for better maintainability.
+
 ## 1.1.4 - 2024/12/28
 
 - Fixed an issue where the contents of .gitignore in parent folders were ignored.
