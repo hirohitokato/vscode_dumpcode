@@ -127,13 +127,12 @@
                     ],
                     "default": "clipboard",
                     "description": "The default output destination when you right-click in the Explorer view and select 'Dump files to...'. 'file' = output to a file, 'clipboard' = copy to clipboard."
+                },
+                "dumpSource.revealFocus": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "When true the Dump Sourcecode tree will take focus when revealing the active file (true = focus the tree). Set to false to keep focus in the editor while still highlighting the file in the view."
                 }
-            ,
-            "dumpSource.revealFocus": {
-                "type": "boolean",
-                "default": true,
-                "description": "When true the Dump Sourcecode tree will take focus when revealing the active file (true = focus the tree). Set to false to keep focus in the editor while still highlighting the file in the view."
-            }
             }
         }
     },
@@ -156,6 +155,7 @@
         "isbinaryfile": "^5.0.4"
     },
     "devDependencies": {
+        "@types/chai": "^5.2.3",
         "@types/mocha": "^10.0.9",
         "@types/node": "20.x",
         "@types/vscode": "^1.54.0",
@@ -163,6 +163,7 @@
         "@typescript-eslint/parser": "^8.7.0",
         "@vscode/test-cli": "^0.0.10",
         "@vscode/test-electron": "^2.4.1",
+        "chai": "^6.2.1",
         "esbuild": "^0.25.5",
         "eslint": "^9.13.0",
         "npm-run-all": "^4.1.5",
