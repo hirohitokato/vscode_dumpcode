@@ -1,51 +1,11 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { isBinaryFile } from "isbinaryfile";
+import { FileNode } from "./FileNode";
+export { FileNode };
+import { readDirectory, stat, readFileUtf8, isBinaryPath } from "../utils/fsHelper";
 import ignore, { Ignore } from "ignore";
 
-/* ---------- FileNode ---------- */
-export class FileNode extends vscode.TreeItem {
-    constructor(
-        public readonly uri: vscode.Uri,
-        public readonly isDirectory: boolean,
-        private readonly provider: FileTreeProvider,
-        private readonly isBinary: boolean
-    ) {
-        super(
-            path.basename(uri.fsPath),
-            isDirectory
-                ? vscode.TreeItemCollapsibleState.Collapsed
-                : vscode.TreeItemCollapsibleState.None
-        );
-
-        this.resourceUri = uri;
-        this.contextValue = isDirectory ? "folder" : "file";
-
-        /* バイナリファイルはチェック無し & アイコン変更 */
-        if (this.isBinary) {
-            this.iconPath = new vscode.ThemeIcon("file-binary");
-        } else {
-            this.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
-            // ファイルをクリックしたときに開くコマンドを設定
-            if (!isDirectory) {
-                this.command = {
-                    command: "dump-sourcecode.openFileOnClick",
-                    title: "Open File",
-                    arguments: [this],
-                };
-            }
-        }
-    }
-
-    /** 描画直前にチェック状態を同期 */
-    public syncCheckbox(): void {
-        if (!this.isBinary) {
-            this.checkboxState = this.provider.isChecked(this.uri.fsPath)
-                ? vscode.TreeItemCheckboxState.Checked
-                : vscode.TreeItemCheckboxState.Unchecked;
-        }
-    }
-}
+/* FileNode moved to src/views/FileNode.ts (domain object). */
 
 /* ---------- FileTreeProvider ---------- */
 export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
@@ -215,7 +175,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             return [rootNode];
         }
 
-        const entries = await vscode.workspace.fs.readDirectory(element.uri);
+        const entries = await readDirectory(element.uri);
 
         // ignoreルールでフィルタリング
         const filtered = entries.filter(([name, fileType]) => {
@@ -230,14 +190,12 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             return !this.ig.ignores(relPath);
         });
 
-        // Sort entries to match Explorer order: directories first, then files,
-        // both alphabetically (natural, case-insensitive).
+        // Sort entries to match Explorer: directories first, then files, alphabetical
         const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
         filtered.sort(([aName, aType], [bName, bType]) => {
             const aIsDir = aType === vscode.FileType.Directory;
             const bIsDir = bType === vscode.FileType.Directory;
             if (aIsDir !== bIsDir) {
-                // directories first
                 return aIsDir ? -1 : 1;
             }
             return collator.compare(aName, bName);
@@ -248,8 +206,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
                 const uri = vscode.Uri.joinPath(element.uri, name);
                 const isDir = fileType === vscode.FileType.Directory;
                 const isBin =
-                    !isDir &&
-                    (await isBinaryFile(uri.fsPath).catch(() => false));
+                    !isDir && (await isBinaryPath(uri.fsPath).catch(() => false));
 
                 let node = this.nodeCache.get(uri.fsPath);
                 if (!node) {
@@ -316,8 +273,8 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             // Determine if directory or file
             let isDir = false;
             try {
-                const stat = await vscode.workspace.fs.stat(uri);
-                isDir = (stat.type & vscode.FileType.Directory) !== 0;
+                const statRes = await stat(uri);
+                isDir = (statRes.type & vscode.FileType.Directory) !== 0;
             } catch {
                 // If stat fails assume file (best-effort). Some URIs may be reported
                 // by the editor but not yet stat'able or have different permissions.
@@ -330,7 +287,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             if (!isDir) {
                 // isBinaryFile may throw for special files; ignore errors
                 try {
-                    isBin = await isBinaryFile(currentPath).catch(() => false);
+                    isBin = await isBinaryPath(currentPath).catch(() => false);
                 } catch {
                     isBin = false;
                 }
@@ -372,16 +329,12 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         return this.getNodeForPath(parentPath);
     }
 
-    
-
     private async collectAllPaths(
         current: string,
         acc: string[]
     ): Promise<void> {
         acc.push(current);
-        const entries = await vscode.workspace.fs.readDirectory(
-            vscode.Uri.file(current)
-        );
+        const entries = await readDirectory(vscode.Uri.file(current));
         for (const [name, type] of entries) {
             const child = path.join(current, name);
             if (type === vscode.FileType.Directory) {

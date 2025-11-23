@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { dumpFilesContent, getFiles, readFilesContent } from "../fileProcessor";
-import { UserDefaults } from "../userDefaults";
+import { dumpFilesContent, getFiles, readFilesContent } from "./fileProcessor";
+import { UserDefaults } from "../config/userDefaults";
 import path from "path";
 
 /**
@@ -59,4 +59,47 @@ export async function handleDumpFiles(uri: vscode.Uri, target: "file" | "clipboa
             );
         },
     );
+}
+
+/**
+ * Copy specified absolute file paths to clipboard as a single concatenated
+ * string (same format as dumpFilesContent/readFilesContent).
+ *
+ * This function is UI/service layer and intentionally accepts absolute
+ * paths so callers (e.g. tree controller) can pass selected files directly
+ * without reimplementing formatting.
+ */
+export async function copyFilesToClipboard(filePaths: string[], workspaceRoot?: string): Promise<void> {
+    if (!filePaths || filePaths.length === 0) {
+        // nothing to do
+        return;
+    }
+
+    // Guess workspace root if not provided
+    const root = workspaceRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
+
+    // Build content using readFilesContent logic but operate using absolute paths
+    let contents = "";
+    for (const file of filePaths) {
+        const relative = path.relative(root, file).replace(/\\/g, "/");
+        const separator = `\n########## ${relative} ##########\n`;
+        contents += separator;
+        const content = await (async () => {
+            try {
+                const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(file));
+                return Buffer.from(bytes).toString("utf8");
+            } catch {
+                return "";
+            }
+        })();
+        contents += content + "\n";
+    }
+
+    await vscode.env.clipboard.writeText(contents);
+    // Best-effort user feedback
+    try {
+        vscode.window.showInformationMessage("Copy to clipboard completed.");
+    } catch {
+        // ignore in headless tests
+    }
 }

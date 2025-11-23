@@ -149,7 +149,8 @@
         "pretest": "npm run compile-tests && npm run compile && npm run lint",
         "check-types": "tsc --noEmit",
         "lint": "eslint src",
-        "test": "vscode-test"
+        "test": "vscode-test",
+        "test:win": "powershell -Command \"$env:NODE_TLS_REJECT_UNAUTHORIZED='0'; npx vscode-test\""
     },
     "dependencies": {
         "ignore": "^6.0.2",
