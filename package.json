@@ -29,7 +29,8 @@
             "explorer": [
                 {
                     "id": "dump-sourcecode.targetTreeView",
-                    "name": "Dump Sourcecode"
+                    "name": "Dump Sourcecode",
+                    "icon": "assets/icon.png"
                 }
             ]
         },
