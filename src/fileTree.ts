@@ -230,6 +230,19 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
             return !this.ig.ignores(relPath);
         });
 
+        // Sort entries to match Explorer order: directories first, then files,
+        // both alphabetically (natural, case-insensitive).
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+        filtered.sort(([aName, aType], [bName, bType]) => {
+            const aIsDir = aType === vscode.FileType.Directory;
+            const bIsDir = bType === vscode.FileType.Directory;
+            if (aIsDir !== bIsDir) {
+                // directories first
+                return aIsDir ? -1 : 1;
+            }
+            return collator.compare(aName, bName);
+        });
+
         const nodes = await Promise.all(
             filtered.map(async ([name, fileType]) => {
                 const uri = vscode.Uri.joinPath(element.uri, name);
