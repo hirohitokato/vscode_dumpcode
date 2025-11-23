@@ -177,7 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             await vscode.env.clipboard.writeText(dumpText);
             vscode.window.showInformationMessage(
-                "チェックしたファイルの内容をクリップボードにコピーしました。",
+                `Copied ${filePaths.length} files to clipboard.`,
             );
         },
     );
