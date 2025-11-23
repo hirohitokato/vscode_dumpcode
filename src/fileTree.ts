@@ -250,6 +250,117 @@ export class FileTreeProvider implements vscode.TreeDataProvider<FileNode> {
         return nodes;
     }
 
+    /**
+     * Return or create a FileNode for an absolute fsPath inside the workspace.
+     * This walks from the workspace root to the target path, creating cached
+     * FileNode entries for intermediate directories/files so that the TreeView
+     * can reveal/select them reliably.
+     *
+     * Returns undefined when workspace is not set or path is outside of it.
+     */
+    public async getNodeForPath(fsPath: string): Promise<FileNode | undefined> {
+        if (!this.workspaceRoot || !fsPath.startsWith(this.workspaceRootPath)) {
+            return undefined;
+        }
+
+        // Ensure root node exists
+        if (!this.nodeCache.has(this.workspaceRoot.fsPath)) {
+            const rootNode = new FileNode(this.workspaceRoot, true, this, false);
+            this.nodeCache.set(this.workspaceRoot.fsPath, rootNode);
+        }
+
+        // Quick ignore check using relative path. If path is ignored, bail out.
+        const rel = path.relative(this.workspaceRootPath, fsPath).split(path.sep).join("/");
+        // if the exact path (or directory-form) is ignored by configured patterns, don't try to reveal it
+        if (this.ig.ignores(rel) || this.ig.ignores(rel.endsWith("/") ? rel : rel + "/")) {
+            return undefined;
+        }
+
+        // If exact node already cached return it
+        if (this.nodeCache.has(fsPath)) {
+            return this.nodeCache.get(fsPath);
+        }
+
+        // Build path segments from workspace root to target
+        const relative = path.relative(this.workspaceRootPath, fsPath);
+        const parts = relative.split(path.sep).filter(Boolean);
+
+        let currentPath = this.workspaceRoot.fsPath;
+        let currentNode = this.nodeCache.get(currentPath)!;
+
+        for (const part of parts) {
+            currentPath = path.join(currentPath, part);
+
+            // cached?
+            let node = this.nodeCache.get(currentPath);
+            if (node) {
+                currentNode = node;
+                continue;
+            }
+
+            const uri = vscode.Uri.file(currentPath);
+
+            // Determine if directory or file
+            let isDir = false;
+            try {
+                const stat = await vscode.workspace.fs.stat(uri);
+                isDir = (stat.type & vscode.FileType.Directory) !== 0;
+            } catch {
+                // If stat fails assume file (best-effort). Some URIs may be reported
+                // by the editor but not yet stat'able or have different permissions.
+                // Don't abort reveal entirely — continue and create a node.
+                isDir = false;
+            }
+
+            // Binary check for files
+            let isBin = false;
+            if (!isDir) {
+                // isBinaryFile may throw for special files; ignore errors
+                try {
+                    isBin = await isBinaryFile(currentPath).catch(() => false);
+                } catch {
+                    isBin = false;
+                }
+
+                // If it's a binary file, we don't show it in the tree and should not reveal it
+                if (isBin) {
+                    return undefined;
+                }
+            }
+
+            node = new FileNode(uri, isDir, this, isBin);
+            this.nodeCache.set(currentPath, node);
+            currentNode = node;
+        }
+
+        return this.nodeCache.get(fsPath);
+    }
+
+    /**
+     * Return the parent FileNode of the given element, or undefined when at root.
+     * Implemented to enable use of TreeView.reveal() which requires getParent.
+     */
+    public async getParent(element: FileNode): Promise<FileNode | undefined> {
+        if (!this.workspaceRoot) {
+            return undefined;
+        }
+
+        const fsPath = element.uri.fsPath;
+        if (fsPath === this.workspaceRoot.fsPath) {
+            return undefined;
+        }
+
+        const parentPath = path.dirname(fsPath);
+        if (!parentPath.startsWith(this.workspaceRootPath)) {
+            return undefined;
+        }
+
+        // Reuse getNodeForPath which will bail out for ignored/missing/binary nodes
+        return this.getNodeForPath(parentPath);
+    }
+
+    
+
     private async collectAllPaths(
         current: string,
         acc: string[]

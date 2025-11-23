@@ -36,6 +36,78 @@ export function activate(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(treeView);
 
+    // Reveal / highlight currently active editor file in the Dump Sourcecode tree
+    async function revealActiveEditorInTree(editor?: vscode.TextEditor | undefined) {
+        try {
+            const active = editor ?? vscode.window.activeTextEditor;
+            if (!active) {
+                return;
+            }
+
+            const uri = active.document.uri;
+            // Only reveal file URIs from the workspace
+            if (!workspaceRoot) {
+                return;
+            }
+
+            // ask provider for the node (it will ensure cached nodes exist)
+            // First attempt: get or create node for the path and reveal it.
+            // NOTE: reveal will only work for files that belong to the same
+            // workspace root that this tree provider was created for. If the
+            // active editor is from another root (multi-root workspace) the
+            // provider can't reveal it.
+            const node = await treeProvider.getNodeForPath(uri.fsPath);
+            if (node) {
+                // Make sure explorer (which contains our view) is visible so reveal actually unfolds/scrolls.
+                // Opening the Explorer sidebar is a best-effort action and will not throw on most platforms.
+                try {
+                    await vscode.commands.executeCommand("workbench.view.explorer");
+                } catch {
+                    // ignore
+                }
+
+                await treeView.reveal(node, { select: true, focus: true, expand: 2 });
+                return;
+            }
+
+            // Fallback: if the node wasn't available, the tree may not have
+            // enumerated the parent yet. Try a best-effort refresh and retry
+            // once after a short delay. This helps when the node was never
+            // cached but is visible via readdir/readDirectory.
+                try {
+                // ensure the explorer / side bar is visible before retrying reveal
+                try {
+                    await vscode.commands.executeCommand("workbench.view.explorer");
+                } catch {}
+
+                treeProvider.refresh();
+                await new Promise((r) => setTimeout(r, 120));
+                const node2 = await treeProvider.getNodeForPath(uri.fsPath);
+                if (node2) {
+                    await treeView.reveal(node2, { select: true, focus: true, expand: 2 });
+                }
+            } catch (err) {
+                // best-effort; ignore reveal failures
+            }
+        } catch (err) {
+            // best-effort; failure shouldn't break activation
+            console.error("Failed to reveal active editor in Dump Sourcecode tree:", err);
+        }
+    }
+
+    // Reveal when active editor changes and when visible editors change (works for splits)
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor((editor) => revealActiveEditorInTree(editor)),
+        vscode.window.onDidChangeVisibleTextEditors((editors) => {
+            // use the most relevant active editor among visible editors
+            const active = vscode.window.activeTextEditor ?? editors[0];
+            revealActiveEditorInTree(active);
+        }),
+    );
+
+    // initial reveal
+    revealActiveEditorInTree();
+
     // 最後にクリックした時間と URI を保持
     let _lastClickTime = 0;
     let _lastClickUri = "";
