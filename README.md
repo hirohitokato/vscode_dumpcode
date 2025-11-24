@@ -1,4 +1,4 @@
-# Dump Sources Extension
+# Dump Codes Extension
 
 > A VS Code extension to collect and export source files from a folder — either as a single text file or copied to the clipboard.
 
@@ -6,15 +6,23 @@
 
 ## Key Features
 
--   **Two Modes of Operation**:
+- **Two Modes of Operation**:
 
-    1. **Explorer Context Menu**: Quickly dump all source files in any folder via right-click, output to a file or clipboard.
-    2. **Dump Sourcecode Tree View**: Fine-grained file selection with a dedicated tree view. Files can be opened by clicking, and selected items can be copied to the clipboard.
+    1. **Explorer Context Menu**: Quickly dump all source files in a folder via
+       right-click, and output them to a file or to the clipboard.
+    2. **Dump Codes Tree View**: A fine-grained selection UI. Expand folders,
+       check files and folders, then copy or export just the selected items.
+    3. **Select Open Editors**: Mark all currently open editor tabs directly in
+       the Dump Codes tree. This is a fast way to include the files you're
+       actively editing in an export. The command is available on the tree
+       title bar and from the Command Palette.
 
--   **Commands**:
-    -   Dump files to a single file.
-    -   Dump files to the clipboard.
-    -   Refresh or clear selections in the tree view.
+**Commands**:
+
+- Dump files to a single file.
+- Dump files to the clipboard.
+- Refresh or clear selections in the tree view.
+- Select all currently open editor tabs (in-tree) so they can be dumped or copied: `Select Open Editors` (available in the view title and Command Palette).
 
 ## Usage
 
@@ -26,15 +34,44 @@
 
 ![Explorer Context Menu](./assets/screenshot2.png)
 
-### 2. Dump Sourcecode Tree View
+### 2. Dump Codes Tree View
 
-1. Open the **Dump Sourcecode** view from the Explorer sidebar.
+1. Open the **Dump Codes** view from the Explorer sidebar.
 2. Click the **Refresh** icon to scan for text-based source files.
 3. Expand folders and click the checkbox next to files (or folders) to select them.
 4. Click a file in the tree to open it in the editor.
-5. Use the **Copy Selected** command (via the view title or item context menu) to copy the contents of all selected files to the clipboard.
+5. Use the **Copy Selected** command (via the view title or item context menu)
+   to copy the contents of all selected files to the clipboard.
 
-> **Note**: In tree view you can open files by clicking them and copy selected files to the clipboard using the `Copy Selected` command.
+### Select Open Editors
+
+The `Select Open Editors` command marks all currently open editor tabs that
+exist inside the workspace in the `Dump Codes` tree view. It is intended as a
+fast way to collect exactly the files you are working on and include them in
+an export or clipboard operation.
+
+- Location: available from the **Dump Codes** tree title bar (alongside Refresh
+    / Clear / Copy) and from the Command Palette for discoverability and shortcut
+    binding.
+- Action: by default the command replaces the current selection in the tree
+    with workspace files corresponding to all open editor tabs. An optional
+    argument `{ "add": true }` will add to the existing selection instead of
+    replacing it.
+- Filtering: files outside the workspace, ignored by `.gitignore` or
+    `dumpSource.userIgnorePatterns`, or detected as binary are omitted; a brief
+    information message shows counts for selected vs skipped items.
+
+Usage examples:
+
+- Use View Title button: click the `Select Open Editors` button on the
+    **Dump Codes** view title bar to replace the current selection with all open
+    editor tabs from the workspace.
+- Use Command Palette: run `> Dump Codes: Select Open Editors` — optionally
+    pass an argument `{ "add": true }` to add to the selection instead of
+    replacing it.
+
+> **Note**: In tree view you can open files by clicking them and copy
+> selected files to the clipboard using the `Copy Selected` command.
 
 ![Tree View Selection](./assets/screenshot1.png)
 
@@ -48,17 +85,19 @@
 | `dump-sourcecode.refreshTree`             | Refresh Tree              | Tree view                                  |
 | `dump-sourcecode.clearSelection`          | Clear Selection           | Tree view                                  |
 | `dump-sourcecode.copySelected`            | Copy Selected             | Tree view                                  |
+| `dump-sourcecode.selectOpenEditors`       | Select Open Editors       | Tree view title + Command Palette          |
 
 ## Configuration
 
-Under **Preferences › Settings › Dump Sourcecode**, configure:
+Under **Preferences › Settings › Dump Codes**, configure:
 
-| Setting                         | Default                                    | Applies When                                                                                                              |
-| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `dumpSource.outputFileName`     | `aggregated_sources.txt`                   | Explorer context **file** mode                                                                                            |
-| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes (filters files to include). Patterns are applied on top of .gitignore rules and use .gitignore-style matching. |
-| `dumpSource.defaultDumpTarget`  | `clipboard`                                | Explorer context (sets default action)                                                                                    |
-| `dumpSource.revealFocus`        | `true`                                     | Whether the Dump Sourcecode tree takes focus when revealing the active file; set to `false` to keep focus in the editor   |
+| Setting | Default | Applies When |
+| --- | --- | --- |
+| `dumpSource.outputFileName` | `aggregated_sources.txt` | Explorer context **file** mode |
+| `dumpSource.userIgnorePatterns` | `["*.md", ".vscode", "package-lock.json"]` | Both modes — patterns apply on top of .gitignore rules. |
+| `dumpSource.defaultDumpTarget` | `clipboard` | Explorer context (sets default action) |
+| `dumpSource.revealFocus` | `true` | Whether the Dump Codes tree takes focus when revealing the active file; set to `false` to keep focus in the editor |
+| `dumpSource.maxSelectOpenEditors` | `20` | Max open tabs (0 = unlimited) |
 
 ### Sample Configuration
 
@@ -83,34 +122,8 @@ Under **Preferences › Settings › Dump Sourcecode**, configure:
 3. Press `F5` to launch the Extension Development Host.
 4. Use the commands as described above.
 
-## Release Notes
+## Change Logs
 
-### 2.1.0
+See [CHANGELOG.md](./CHANGELOG.md) for details.
 
--   Added a feature to synchronize the file content in the tree view with the editor.
--   Improved package information.
--   Updated dependencies.
--   Minor bug fixes and performance improvements.
--   Refactored codebase for better maintainability.
-
-### 2.0.6
-
--   Added the ability to open content when clicking on a file in the tree view.
-
-### 2.0.5
-
--   Discontinued ignoring files described in .vscodeignore
-
-### 2.0.2
-
--   Refined README with usage scenarios and settings clarity.
-
-### 2.0.1
-
--   Introduced tree view and flexible output modes. See settings for more details.
-
-### 1.0.0
-
--   Initial release: basic file dumping functionality.
-
-_Published by [hkato193](https://github.com/hirohitokato)_
+*Published by [hkato193](https://github.com/hirohitokato)*

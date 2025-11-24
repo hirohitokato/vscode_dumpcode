@@ -25,4 +25,18 @@ export class UserDefaults {
     get revealFocus(): boolean {
         return this.config.get<boolean>("revealFocus", true);
     }
+
+    // maximum number of open editors that Select Open Editors will process
+    get maxSelectOpenEditors(): number {
+        const raw = this.config.get<number>("maxSelectOpenEditors", 20);
+        // Ensure an integer in the supported range 0..100 (0 == unlimited)
+        const n = Number.isFinite(raw) ? Math.floor(raw as number) : 20;
+        if (n < 0) {
+            return 0;
+        }
+        if (n > 100) {
+            return 100;
+        }
+        return n;
+    }
 }

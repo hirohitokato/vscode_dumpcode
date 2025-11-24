@@ -15,7 +15,7 @@ export function initializeTreeAndCommands(
     treeView: vscode.TreeView<FileNode>,
     context: vscode.ExtensionContext
 ) {
-    // Reveal / highlight currently active editor file in the Dump Sourcecode tree
+    // Reveal / highlight currently active editor file in the Dump Codes tree
     async function revealActiveEditorInTree(editor?: vscode.TextEditor | undefined) {
         try {
             const active = editor ?? vscode.window.activeTextEditor;
@@ -58,7 +58,7 @@ export function initializeTreeAndCommands(
                 // best-effort; ignore
             }
         } catch (err) {
-            console.error("Failed to reveal active editor in Dump Sourcecode tree:", err);
+            console.error("Failed to reveal active editor in Dump Codes tree:", err);
         }
     }
 
@@ -74,7 +74,7 @@ export function initializeTreeAndCommands(
     // initial reveal
     revealActiveEditorInTree();
 
-    // DUMP SOURCECODE ツリービューでクリックした時にファイルを開く
+    // DUMP CODES ツリービューでクリックした時にファイルを開く
     const openFileOnClick = vscode.commands.registerCommand(
         "dump-sourcecode.openFileOnClick",
         (node: FileNode) => {
@@ -155,6 +155,124 @@ export function initializeTreeAndCommands(
         },
     );
     context.subscriptions.push(dumpToClipboardDisposable);
+
+    /* Select all open editors and mark them in the tree view */
+    const selectOpenEditorsDisposable = vscode.commands.registerCommand(
+        "dump-sourcecode.selectOpenEditors",
+        async (opts?: { add?: boolean }) => {
+            try {
+                const cfg = new UserDefaults();
+
+                // Collect all open tabs across tabGroups
+                const allTabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs);
+
+                // Quick guard: too many open tabs -> abort early
+                const max = cfg.maxSelectOpenEditors ?? 20;
+                // If max is 0, treat as unlimited. Otherwise abort when too many tabs open.
+                if (max > 0 && allTabs.length > max) {
+                    vscode.window.showErrorMessage(
+                        `Select Open Editors aborted: too many open tabs (${allTabs.length}). Increase dumpSource.maxSelectOpenEditors if needed.`
+                    );
+                    return;
+                }
+
+                // Ensure workspace root
+                if (!workspaceRoot) {
+                    vscode.window.showInformationMessage("No workspace open to select files into the Dump Codes tree.");
+                    return;
+                }
+
+                // Decide whether to replace or add
+                const replace = !(opts && opts.add === true);
+                if (replace) {
+                    treeProvider.clearAllChecked();
+                }
+
+                let selectedCount = 0;
+                let skippedUntitled = 0;
+                let skippedOutside = 0;
+                let skippedIgnored = 0;
+                let skippedNonFile = 0;
+
+                const nodesToReveal: FileNode[] = [];
+
+                for (const tab of allTabs) {
+                    // Try multiple ways to extract URI from the tab input
+                    const anyTab = tab as any;
+                    let uri: vscode.Uri | undefined;
+
+                    if (anyTab.input && anyTab.input.uri instanceof vscode.Uri) {
+                        uri = anyTab.input.uri as vscode.Uri;
+                    } else if (anyTab.input && anyTab.input.resource instanceof vscode.Uri) {
+                        uri = anyTab.input.resource as vscode.Uri;
+                    } else if (anyTab.input && anyTab.input.textEditor && anyTab.input.textEditor.document && anyTab.input.textEditor.document.uri) {
+                        uri = anyTab.input.textEditor.document.uri as vscode.Uri;
+                    } else if ((tab as any).document && (tab as any).document.uri) {
+                        uri = (tab as any).document.uri as vscode.Uri;
+                    }
+
+                    if (!uri) {
+                        skippedNonFile++;
+                        continue;
+                    }
+
+                    // skip untitled or non-file schemes
+                    if (uri.scheme !== "file") {
+                        if (uri.scheme === "untitled") {
+                            skippedUntitled++;
+                        } else {
+                            skippedNonFile++;
+                        }
+                        continue;
+                    }
+
+                    // outside workspace?
+                    if (!uri.fsPath.startsWith(workspaceRoot.fsPath)) {
+                        skippedOutside++;
+                        continue;
+                    }
+
+                    // ask provider for a node (provider returns undefined if ignored/binary/out-of-tree)
+                    const node = await treeProvider.getNodeForPath(uri.fsPath);
+                    if (!node) {
+                        skippedIgnored++;
+                        continue;
+                    }
+
+                    // mark
+                    if (node.isDirectory) {
+                        await treeProvider.markRecursively(node.uri.fsPath);
+                    } else {
+                        treeProvider.markChecked(node.uri.fsPath);
+                    }
+                    selectedCount++;
+                    nodesToReveal.push(node);
+                }
+
+                // reveal first matched node so user sees result; respect revealFocus setting
+                if (nodesToReveal.length > 0) {
+                    const cfg2 = new UserDefaults();
+                    const takeFocus = cfg2.revealFocus;
+                    try {
+                        await treeView.reveal(nodesToReveal[0], { select: true, focus: takeFocus, expand: 2 });
+                    } catch {
+                        // best-effort
+                    }
+                }
+
+                // Feedback
+                const skippedTotal = skippedUntitled + skippedOutside + skippedIgnored + skippedNonFile;
+                vscode.window.showInformationMessage(
+                    `Select Open Editors: ${selectedCount} files selected` + (skippedTotal ? `, ${skippedTotal} skipped` : "")
+                );
+            } catch (err) {
+                console.error("selectOpenEditors failed:", err);
+                // avoid spamming user with internal details
+                vscode.window.showErrorMessage("Failed to select open editors for Dump Codes. See console for details.");
+            }
+        }
+    );
+    context.subscriptions.push(selectOpenEditorsDisposable);
 }
 
 export default initializeTreeAndCommands;

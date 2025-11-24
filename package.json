@@ -1,9 +1,9 @@
 {
     "name": "dump-sourcecode",
-    "displayName": "Dump Sources Extension",
+    "displayName": "Dump Codes Extension",
     "description": "The extension gathers all source files in the specified folder and concatenates their contents into a single text file.",
     "icon": "assets/icon.png",
-    "version": "2.1.0",
+    "version": "2.1.1",
     "publisher": "hkato193",
     "repository": {
         "url": "https://github.com/hirohitokato/vscode_dumpcode"
@@ -29,7 +29,7 @@
             "explorer": [
                 {
                     "id": "dump-sourcecode.targetTreeView",
-                    "name": "Dump Sourcecode",
+                    "name": "Dump Codes",
                     "icon": "assets/icon.png"
                 }
             ]
@@ -39,6 +39,11 @@
                 "command": "dump-sourcecode.copySelected",
                 "title": "Dump Selections to Clipboard",
                 "icon": "$(clippy)"
+            },
+            {
+                "command": "dump-sourcecode.selectOpenEditors",
+                "title": "Select Open Editors",
+                "icon": "$(files)"
             },
             {
                 "command": "dump-sourcecode.refreshTree",
@@ -99,16 +104,28 @@
                     "command": "dump-sourcecode.copySelected",
                     "when": "view == dump-sourcecode.targetTreeView",
                     "group": "navigation@3"
+                },
+                {
+                    "command": "dump-sourcecode.selectOpenEditors",
+                    "when": "view == dump-sourcecode.targetTreeView",
+                    "group": "navigation@4"
                 }
             ]
         },
         "configuration": {
-            "title": "Dump Sourcecode Settings",
+            "title": "Dump Codes Settings",
             "properties": {
                 "dumpSource.outputFileName": {
                     "type": "string",
                     "default": "aggregated_sources.txt",
                     "description": "The name of the output file that will store the concatenated contents of all collected text-based files.\n\nThis settings affects only when the 'Dump files to...' command is executed from the Explorer view and the target is set to 'file'."
+                },
+                "dumpSource.maxSelectOpenEditors": {
+                    "type": "number",
+                    "default": 20,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Maximum number of open editor tabs that the 'Select Open Editors' command will process. Valid range is 0-100 (0 = no limit). If more tabs are open than this value the command will abort and show an error message."
                 },
                 "dumpSource.userIgnorePatterns": {
                     "type": "array",
@@ -132,7 +149,7 @@
                 "dumpSource.revealFocus": {
                     "type": "boolean",
                     "default": true,
-                    "description": "When true the Dump Sourcecode tree will take focus when revealing the active file (true = focus the tree). Set to false to keep focus in the editor while still highlighting the file in the view."
+                    "description": "When true the Dump Codes tree will take focus when revealing the active file (true = focus the tree). Set to false to keep focus in the editor while still highlighting the file in the view."
                 }
             }
         }

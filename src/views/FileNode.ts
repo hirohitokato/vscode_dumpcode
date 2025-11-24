@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 
 /**
- * Pure domain object representing a node in the Dump Sourcecode tree.
+ * Pure domain object representing a node in the Dump Codes tree.
  * Kept intentionally free of file system operations so tests can mock provider
  * behaviour without touching fs APIs.
  */
