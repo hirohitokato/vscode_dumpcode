@@ -1,8 +1,12 @@
 import * as vscode from "vscode";
 import { FileNode, FileTreeProvider } from "../views/fileTree";
 import { UserDefaults } from "../config/userDefaults";
-import path from "path";
-import { handleDumpFiles, copyFilesToClipboard } from "../services/dumpChildren";
+import {
+    handleDumpFiles,
+    copyFilesToClipboard,
+} from "../services/dumpChildren";
+
+const DOUBLE_CLICK_MS = 350;
 
 /**
  * Encapsulates behavior and command handlers that were previously embedded
@@ -15,71 +19,46 @@ export function initializeTreeAndCommands(
     treeView: vscode.TreeView<FileNode>,
     context: vscode.ExtensionContext
 ) {
-    // Reveal / highlight currently active editor file in the Dump Codes tree
-    async function revealActiveEditorInTree(editor?: vscode.TextEditor | undefined) {
-        try {
-            const active = editor ?? vscode.window.activeTextEditor;
-            if (!active) {
-                return;
+    let lastClick: { path: string; at: number } | undefined;
+
+    const toggleNodeChecked = async (node: FileNode) => {
+        const isChecked = treeProvider.isChecked(node.uri.fsPath);
+        if (node.isDirectory) {
+            if (isChecked) {
+                treeProvider.unmarkRecursively(node.uri.fsPath);
+            } else {
+                await treeProvider.markRecursively(node.uri.fsPath);
             }
-
-            const uri = active.document.uri;
-            // Only reveal file URIs from the workspace
-            if (!workspaceRoot) {
-                return;
+        } else {
+            if (isChecked) {
+                treeProvider.unmarkChecked(node.uri.fsPath);
+            } else {
+                treeProvider.markChecked(node.uri.fsPath);
             }
-
-            // First attempt: get or create node for the path and reveal it.
-            const node = await treeProvider.getNodeForPath(uri.fsPath);
-            const cfg = new UserDefaults();
-            const takeFocus = cfg.revealFocus; // true => focus the tree when revealing
-            if (node) {
-                try {
-                    await vscode.commands.executeCommand("workbench.view.explorer");
-                } catch {}
-
-                await treeView.reveal(node, { select: true, focus: takeFocus, expand: 2 });
-                return;
-            }
-
-            // fallback: refresh and retry once
-            try {
-                try {
-                    await vscode.commands.executeCommand("workbench.view.explorer");
-                } catch {}
-
-                treeProvider.refresh();
-                await new Promise((r) => setTimeout(r, 120));
-                const node2 = await treeProvider.getNodeForPath(uri.fsPath);
-                if (node2) {
-                    await treeView.reveal(node2, { select: true, focus: takeFocus, expand: 2 });
-                }
-            } catch {
-                // best-effort; ignore
-            }
-        } catch (err) {
-            console.error("Failed to reveal active editor in Dump Codes tree:", err);
         }
-    }
+    };
 
-    // reveal listeners
-    context.subscriptions.push(
-        vscode.window.onDidChangeActiveTextEditor((editor) => revealActiveEditorInTree(editor)),
-        vscode.window.onDidChangeVisibleTextEditors((editors) => {
-            const active = vscode.window.activeTextEditor ?? editors[0];
-            revealActiveEditorInTree(active);
-        }),
-    );
-
-    // initial reveal
-    revealActiveEditorInTree();
-
-    // DUMP CODES ツリービューでクリックした時にファイルを開く
+    // DUMP CODES ツリービューでクリックした時にファイルを開く or チェックボックスをトグル
     const openFileOnClick = vscode.commands.registerCommand(
         "dump-sourcecode.openFileOnClick",
-        (node: FileNode) => {
-            vscode.window.showTextDocument(node.uri);
-        },
+        async (node: FileNode) => {
+            const now = Date.now();
+            const isDoubleClick =
+                lastClick &&
+                lastClick.path === node.uri.fsPath &&
+                now - lastClick.at < DOUBLE_CLICK_MS;
+
+            if (isDoubleClick) {
+                lastClick = undefined;
+                if (!node.isDirectory) {
+                    await vscode.window.showTextDocument(node.uri);
+                }
+                return;
+            }
+
+            lastClick = { path: node.uri.fsPath, at: now };
+            await toggleNodeChecked(node);
+        }
     );
     context.subscriptions.push(openFileOnClick);
 
@@ -108,34 +87,37 @@ export function initializeTreeAndCommands(
             for (const p of checkedPaths) {
                 const stat = await vscode.workspace.fs.stat(vscode.Uri.file(p));
 
-                const isDirectory = (stat.type & vscode.FileType.Directory) !== 0;
+                const isDirectory =
+                    (stat.type & vscode.FileType.Directory) !== 0;
                 if (!isDirectory) {
                     filePaths.push(p);
                 }
             }
 
             if (filePaths.length === 0) {
-                vscode.window.showInformationMessage("No files selected. Please check some files first.");
+                vscode.window.showInformationMessage(
+                    "No files selected. Please check some files first."
+                );
                 return;
             }
 
             // Delegate clipboard formatting + write to service layer so UI logic is thin
             await copyFilesToClipboard(filePaths);
-        },
+        }
     );
     context.subscriptions.push(copyDisposable);
 
     /* ツリーをリフレッシュ */
     const refreshDisposable = vscode.commands.registerCommand(
         "dump-sourcecode.refreshTree",
-        () => treeProvider.refresh(),
+        () => treeProvider.refresh()
     );
     context.subscriptions.push(refreshDisposable);
 
     /* すべてのチェックを解除 */
     const clearDisposable = vscode.commands.registerCommand(
         "dump-sourcecode.clearSelection",
-        () => treeProvider.clearAllChecked(),
+        () => treeProvider.clearAllChecked()
     );
     context.subscriptions.push(clearDisposable);
 
@@ -144,7 +126,7 @@ export function initializeTreeAndCommands(
         "dump-sourcecode.dump_files_to_file",
         async (uri: vscode.Uri) => {
             handleDumpFiles(uri, "file");
-        },
+        }
     );
     context.subscriptions.push(dumpToFileDisposable);
 
@@ -152,7 +134,7 @@ export function initializeTreeAndCommands(
         "dump-sourcecode.dump_files_to_clipboard",
         async (uri: vscode.Uri) => {
             handleDumpFiles(uri, "clipboard");
-        },
+        }
     );
     context.subscriptions.push(dumpToClipboardDisposable);
 
@@ -164,7 +146,9 @@ export function initializeTreeAndCommands(
                 const cfg = new UserDefaults();
 
                 // Collect all open tabs across tabGroups
-                const allTabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs);
+                const allTabs = vscode.window.tabGroups.all.flatMap(
+                    (g) => g.tabs
+                );
 
                 // Quick guard: too many open tabs -> abort early
                 const max = cfg.maxSelectOpenEditors ?? 20;
@@ -178,7 +162,9 @@ export function initializeTreeAndCommands(
 
                 // Ensure workspace root
                 if (!workspaceRoot) {
-                    vscode.window.showInformationMessage("No workspace open to select files into the Dump Codes tree.");
+                    vscode.window.showInformationMessage(
+                        "No workspace open to select files into the Dump Codes tree."
+                    );
                     return;
                 }
 
@@ -201,13 +187,28 @@ export function initializeTreeAndCommands(
                     const anyTab = tab as any;
                     let uri: vscode.Uri | undefined;
 
-                    if (anyTab.input && anyTab.input.uri instanceof vscode.Uri) {
+                    if (
+                        anyTab.input &&
+                        anyTab.input.uri instanceof vscode.Uri
+                    ) {
                         uri = anyTab.input.uri as vscode.Uri;
-                    } else if (anyTab.input && anyTab.input.resource instanceof vscode.Uri) {
+                    } else if (
+                        anyTab.input &&
+                        anyTab.input.resource instanceof vscode.Uri
+                    ) {
                         uri = anyTab.input.resource as vscode.Uri;
-                    } else if (anyTab.input && anyTab.input.textEditor && anyTab.input.textEditor.document && anyTab.input.textEditor.document.uri) {
-                        uri = anyTab.input.textEditor.document.uri as vscode.Uri;
-                    } else if ((tab as any).document && (tab as any).document.uri) {
+                    } else if (
+                        anyTab.input &&
+                        anyTab.input.textEditor &&
+                        anyTab.input.textEditor.document &&
+                        anyTab.input.textEditor.document.uri
+                    ) {
+                        uri = anyTab.input.textEditor.document
+                            .uri as vscode.Uri;
+                    } else if (
+                        (tab as any).document &&
+                        (tab as any).document.uri
+                    ) {
                         uri = (tab as any).document.uri as vscode.Uri;
                     }
 
@@ -254,21 +255,32 @@ export function initializeTreeAndCommands(
                     const cfg2 = new UserDefaults();
                     const takeFocus = cfg2.revealFocus;
                     try {
-                        await treeView.reveal(nodesToReveal[0], { select: true, focus: takeFocus, expand: 2 });
+                        await treeView.reveal(nodesToReveal[0], {
+                            select: true,
+                            focus: takeFocus,
+                            expand: 2,
+                        });
                     } catch {
                         // best-effort
                     }
                 }
 
                 // Feedback
-                const skippedTotal = skippedUntitled + skippedOutside + skippedIgnored + skippedNonFile;
+                const skippedTotal =
+                    skippedUntitled +
+                    skippedOutside +
+                    skippedIgnored +
+                    skippedNonFile;
                 vscode.window.showInformationMessage(
-                    `Select Open Editors: ${selectedCount} files selected` + (skippedTotal ? `, ${skippedTotal} skipped` : "")
+                    `Select Open Editors: ${selectedCount} files selected` +
+                        (skippedTotal ? `, ${skippedTotal} skipped` : "")
                 );
             } catch (err) {
                 console.error("selectOpenEditors failed:", err);
                 // avoid spamming user with internal details
-                vscode.window.showErrorMessage("Failed to select open editors for Dump Codes. See console for details.");
+                vscode.window.showErrorMessage(
+                    "Failed to select open editors for Dump Codes. See console for details."
+                );
             }
         }
     );

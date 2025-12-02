@@ -81,7 +81,7 @@ Usage examples:
 | ----------------------------------------- | ------------------------- | ------------------------------------------ |
 | `dump-sourcecode.dump_files_to_file`      | Dump files to single file | Explorer context (folder only)             |
 | `dump-sourcecode.dump_files_to_clipboard` | Dump files to Clipboard   | Explorer context (folder only) + Tree view |
-| `dump-sourcecode.openFileOnClick`         | Open file on click        | Tree view (opens the clicked file)         |
+| `dump-sourcecode.openFileOnClick`         | Toggle & open on double-click | Tree view (toggle selection, double-click opens file) |
 | `dump-sourcecode.refreshTree`             | Refresh Tree              | Tree view                                  |
 | `dump-sourcecode.clearSelection`          | Clear Selection           | Tree view                                  |
 | `dump-sourcecode.copySelected`            | Copy Selected             | Tree view                                  |
